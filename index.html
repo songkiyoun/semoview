@@ -588,7 +588,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.3</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.4</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -1827,7 +1827,8 @@ async function loadBlogBg(){
   try{
     const csvT=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_TIMELINE_BLOG.id}/export?format=csv&gid=${SH_TIMELINE_BLOG.gid}`);
     blogTimeline=parseBlogTimeline(csvT);
-    renderBrief(); // 타임라인 로드 후 브리핑 갱신
+    blogLoaded=true; // 브리핑에서 재로드 방지
+    renderBrief();
   }catch(_){}
 }
 
@@ -1844,6 +1845,7 @@ async function loadJolgimuBg(){
 }
 
 async function loadBlog(){
+  blogLoaded=false; // 탭 진입 시 최신 데이터 강제 재로드
   const body=document.getElementById('blogBody');
   body.innerHTML=`<div class="spin-wrap"><div class="spin"></div><div class="spin-t">클라이언트 데이터 불러오는 중…</div></div>`;
   try{
