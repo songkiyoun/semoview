@@ -423,16 +423,18 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .doc-order .td-note{padding:14px 12px;font-size:13px;color:#444;line-height:2;white-space:pre-wrap;vertical-align:top}
 .doc-order .note-ph{color:#999;font-size:13px}
 /* 업무보고일지 */
-.doc-report{background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',sans-serif;width:990px;height:700px;margin:0 auto;padding:5mm;border:1px solid #bbb;box-sizing:border-box;position:relative}
+.doc-report{background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',sans-serif;width:990px;height:700px;margin:0 auto;padding:5mm;border:1px solid #bbb;box-sizing:border-box;position:relative;overflow:hidden}
 .doc-report table{width:100%;border-collapse:collapse;table-layout:fixed}
 .doc-report td,.doc-report th{border:1px solid #555;vertical-align:middle;padding:0}
-.doc-report .approval{position:absolute;top:5mm;right:5mm;border-collapse:collapse;font-size:11px}
-.doc-report .approval td{border:1px solid #555;text-align:center;vertical-align:middle;padding:0}
-.doc-report .ap-label{writing-mode:vertical-lr;text-orientation:upright;letter-spacing:4px;font-weight:700;padding:8px 6px;width:22px;background:#f5f5f5}
-.doc-report .ap-head{font-weight:700;padding:5px 0;width:78px;background:#f5f5f5;font-size:11px;text-align:center}
-.doc-report .ap-sign{height:44px;width:78px}
-.doc-report .doc-title{font-size:20px;font-weight:900;letter-spacing:4px;color:#111;padding-top:4mm}
-.doc-report .info-table{margin-top:10mm;border-collapse:collapse;width:38%;font-size:12px}
+/* 결재란 — position:absolute + width:auto 명시 */
+.doc-report .approval{position:absolute;top:68px;right:5mm;border-collapse:collapse;font-size:11px;width:auto !important;table-layout:auto !important}
+.doc-report .approval td{border:1px solid #555;text-align:center;vertical-align:middle;padding:0;width:auto}
+.doc-report .ap-label{writing-mode:vertical-lr;text-orientation:upright;letter-spacing:4px;font-weight:700;padding:8px 6px;width:22px !important;background:#f5f5f5}
+.doc-report .ap-head{font-weight:700;padding:5px 0;width:78px !important;background:#f5f5f5;font-size:11px;text-align:center}
+.doc-report .ap-sign{height:44px;width:78px !important}
+/* 제목 — 결재란과 겹치지 않게 우측 여백 확보 */
+.doc-report .doc-title{font-size:20px;font-weight:900;letter-spacing:4px;color:#111;padding:4mm 280px 6mm 0;display:block}
+.doc-report .info-table{border-collapse:collapse;width:38%;font-size:12px;table-layout:fixed}
 .doc-report .info-table td{border:1px solid #555;padding:0;vertical-align:middle}
 .doc-report .info-lbl{background:#f0f0f0;font-weight:700;text-align:center;padding:7px 8px;white-space:nowrap;width:30%;font-size:11.5px;letter-spacing:1px}
 .doc-report .info-val{padding:7px 10px;font-size:12px;text-align:center;height:28px}
@@ -440,8 +442,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .doc-report .work-table td,.doc-report .work-table th{border:1px solid #555;vertical-align:middle;padding:0}
 .doc-report .wh-name{background:#f0f0f0;font-weight:700;text-align:center;padding:8px 4px;font-size:12px;letter-spacing:2px;width:28%}
 .doc-report .wh-content{background:#f0f0f0;font-weight:700;text-align:center;padding:8px 4px;font-size:12px;letter-spacing:2px}
-.doc-report .wd-name{text-align:center;vertical-align:middle;padding:6px;font-size:11.5px;height:42px}
-.doc-report .wd-content{padding:6px 10px;font-size:11.5px;height:42px;vertical-align:middle}
+.doc-report .wd-name{text-align:center;vertical-align:middle;padding:6px;font-size:11.5px;height:52px;min-height:52px}
+.doc-report .wd-content{padding:6px 10px;font-size:11.5px;height:52px;min-height:52px;vertical-align:middle}
 /* 지출결의서 */
 .doc-expense{background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',sans-serif;width:700px;height:990px;margin:0 auto;padding:5mm;border:1px solid #bbb;box-sizing:border-box;overflow:hidden}
 .doc-expense table{width:100%;border-collapse:collapse;table-layout:fixed}
@@ -941,7 +943,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
                 <button class="doc-btn blue" onclick="printLandscape()">🖨 인쇄·PDF</button>
               </div>
             </div>
-            <div id="rPreviewDoc"></div>
+            <div id="rPreviewDoc" style="overflow-x:auto"></div>
           </div>
         </div>
       </div>
@@ -2943,16 +2945,34 @@ function rViewPreview(id){const doc=rLoad().find(d=>d.id===id);if(doc){rRenderPr
 function rDel(id){if(!confirm('삭제하시겠습니까?'))return;rStore(rLoad().filter(d=>d.id!==id));rRenderList();}
 function rRenderPreview(doc){
   const rows=[...(doc.rows||[])];while(rows.length<9)rows.push({name:'',content:''});
-  const rowsHTML=rows.map(r=>`<tr><td class="wd-name">${docEsc(r.name)}</td><td class="wd-content">${docEsc(r.content)}</td></tr>`).join('');
+  const rowsHTML=rows.map(r=>`<tr style="height:52px"><td class="wd-name">${docEsc(r.name)}</td><td class="wd-content">${docEsc(r.content)}</td></tr>`).join('');
   document.getElementById('rPreviewDoc').innerHTML=`<div class="doc-report" id="print-area">
-    <table class="approval"><tr>
-      <td class="ap-label" rowspan="2">결&nbsp;재</td>
-      <td class="ap-head">담당</td><td class="ap-head">이사</td><td class="ap-head">대표이사</td>
-    </tr><tr><td class="ap-sign"></td><td class="ap-sign"></td><td class="ap-sign"></td></tr></table>
+    <!-- 결재란: position:absolute 우측 상단 -->
+    <table class="approval">
+      <tr>
+        <td class="ap-label" rowspan="2">결&nbsp;재</td>
+        <td class="ap-head">담당</td>
+        <td class="ap-head">이사</td>
+        <td class="ap-head">대표이사</td>
+      </tr>
+      <tr>
+        <td class="ap-sign"></td>
+        <td class="ap-sign"></td>
+        <td class="ap-sign"></td>
+      </tr>
+    </table>
+    <!-- 제목 (좌측) -->
     <div class="doc-title">일일&nbsp;&nbsp;업무&nbsp;&nbsp;보고일지</div>
-    <table class="info-table"><tr><td class="info-lbl">보고자명</td><td class="info-val">${docEsc(doc.reporter)}</td></tr>
-    <tr><td class="info-lbl">보고일자</td><td class="info-val">${docFmtDate(doc.date)}</td></tr></table>
-    <table class="work-table"><tr><th class="wh-name">업&nbsp;&nbsp;무&nbsp;&nbsp;명</th><th class="wh-content">업&nbsp;&nbsp;무&nbsp;&nbsp;내&nbsp;&nbsp;용</th></tr>${rowsHTML}</table>
+    <!-- 보고자 정보 -->
+    <table class="info-table">
+      <tr><td class="info-lbl">보고자명</td><td class="info-val">${docEsc(doc.reporter)}</td></tr>
+      <tr><td class="info-lbl">보고일자</td><td class="info-val">${docFmtDate(doc.date)}</td></tr>
+    </table>
+    <!-- 업무 테이블 -->
+    <table class="work-table">
+      <tr><th class="wh-name">업&nbsp;&nbsp;무&nbsp;&nbsp;명</th><th class="wh-content">업&nbsp;&nbsp;무&nbsp;&nbsp;내&nbsp;&nbsp;용</th></tr>
+      ${rowsHTML}
+    </table>
   </div>`;
 }
 
