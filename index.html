@@ -470,15 +470,30 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .de-memo .memo-val{padding:8px 10px;font-size:11px}
 
 @media print{
-  @page{size:A4 portrait;margin:5mm}
-  .no-print{display:none !important}
-  body{background:#fff !important;padding:0 !important}
-  .doc-order,.doc-expense{border:none !important;width:210mm !important;height:297mm !important;padding:5mm !important;margin:0 !important;max-width:none !important;overflow:visible !important}
-  .doc-report{border:none !important;width:297mm !important;height:210mm !important;padding:5mm !important;margin:0 !important;max-width:none !important}
-  .doc-report .approval{top:5mm;right:5mm}
+  /* print-area가 있을 때: 앱 전체 숨기고 문서만 출력 */
+  body *{visibility:hidden !important}
+  #print-area,#print-area *{visibility:visible !important}
+  #print-area{
+    position:fixed !important;
+    top:0 !important;left:0 !important;
+    margin:0 !important;padding:5mm !important;
+    border:none !important;
+    z-index:9999;
+  }
+  .doc-order#print-area{
+    @page{size:A4 portrait;margin:0}
+    width:210mm !important;height:297mm !important;
+  }
+  .doc-report#print-area{
+    width:297mm !important;height:210mm !important;
+  }
+  .doc-expense#print-area{
+    width:210mm !important;height:297mm !important;
+    overflow:visible !important;
+  }
 }
-@media print and (orientation:landscape){
-  @page{size:A4 landscape;margin:5mm}
+@media print{
+  @page{size:A4 portrait;margin:0}
 }
 </style>
 </head>
@@ -593,7 +608,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.2</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.1</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -923,7 +938,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
               <span style="font-size:12px;color:var(--dim)">📄 A4 가로 기준 · 인쇄 시 용지방향: 가로</span>
               <div style="display:flex;gap:8px">
                 <button class="doc-btn ghost" onclick="docTab('report','write')">← 수정</button>
-                <button class="doc-btn blue" onclick="window.print()">🖨 인쇄·PDF</button>
+                <button class="doc-btn blue" onclick="printLandscape()">🖨 인쇄·PDF</button>
               </div>
             </div>
             <div id="rPreviewDoc"></div>
@@ -3065,6 +3080,16 @@ function save(){
 // ══════════════════════════════════════════════
 function openHelp(){document.getElementById('helpOverlay').classList.add('show');}
 function closeHelp(){document.getElementById('helpOverlay').classList.remove('show');}
+
+// 가로 방향 인쇄 (업무 보고일지)
+function printLandscape(){
+  const style=document.createElement('style');
+  style.id='__landscape_print__';
+  style.textContent='@media print{@page{size:A4 landscape;margin:0}.doc-report#print-area{width:297mm !important;height:210mm !important}}';
+  document.head.appendChild(style);
+  window.print();
+  setTimeout(()=>document.getElementById('__landscape_print__')?.remove(),1000);
+}
 document.getElementById('evModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('helpOverlay').addEventListener('click',function(e){if(e.target===this)closeHelp();});
 </script>
