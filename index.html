@@ -422,28 +422,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .doc-order .td-val{padding:8px 10px;font-size:13px;color:#111;text-align:center;vertical-align:middle}
 .doc-order .td-note{padding:14px 12px;font-size:13px;color:#444;line-height:2;white-space:pre-wrap;vertical-align:top}
 .doc-order .note-ph{color:#999;font-size:13px}
-/* 업무보고일지 */
-.doc-report{background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',sans-serif;width:990px;height:700px;margin:0 auto;padding:5mm;border:1px solid #bbb;box-sizing:border-box;position:relative;overflow:hidden}
-.doc-report table{width:100%;border-collapse:collapse;table-layout:fixed}
-.doc-report td,.doc-report th{border:1px solid #555;vertical-align:middle;padding:0}
-/* 결재란 — position:absolute + width:auto 명시 */
-.doc-report .approval{position:absolute;top:68px;right:5mm;border-collapse:collapse;font-size:11px;width:auto !important;table-layout:auto !important}
-.doc-report .approval td{border:1px solid #555;text-align:center;vertical-align:middle;padding:0;width:auto}
-.doc-report .ap-label{writing-mode:vertical-lr;text-orientation:upright;letter-spacing:4px;font-weight:700;padding:8px 6px;width:22px !important;background:#f5f5f5}
-.doc-report .ap-head{font-weight:700;padding:5px 0;width:78px !important;background:#f5f5f5;font-size:11px;text-align:center}
-.doc-report .ap-sign{height:44px;width:78px !important}
-/* 제목 — 결재란과 겹치지 않게 우측 여백 확보 */
-.doc-report .doc-title{font-size:20px;font-weight:900;letter-spacing:4px;color:#111;padding:4mm 280px 6mm 0;display:block}
-.doc-report .info-table{border-collapse:collapse;width:38%;font-size:12px;table-layout:fixed}
-.doc-report .info-table td{border:1px solid #555;padding:0;vertical-align:middle}
-.doc-report .info-lbl{background:#f0f0f0;font-weight:700;text-align:center;padding:7px 8px;white-space:nowrap;width:30%;font-size:11.5px;letter-spacing:1px}
-.doc-report .info-val{padding:7px 10px;font-size:12px;text-align:center;height:28px}
-.doc-report .work-table{margin-top:6mm;width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
-.doc-report .work-table td,.doc-report .work-table th{border:1px solid #555;vertical-align:middle;padding:0}
-.doc-report .wh-name{background:#f0f0f0;font-weight:700;text-align:center;padding:8px 4px;font-size:12px;letter-spacing:2px;width:28%}
-.doc-report .wh-content{background:#f0f0f0;font-weight:700;text-align:center;padding:8px 4px;font-size:12px;letter-spacing:2px}
-.doc-report .wd-name{text-align:center;vertical-align:middle;padding:6px;font-size:11.5px;height:52px;min-height:52px}
-.doc-report .wd-content{padding:6px 10px;font-size:11.5px;height:52px;min-height:52px;vertical-align:middle}
 /* 지출결의서 */
 .doc-expense{background:#fff;color:#111;font-family:'Malgun Gothic','맑은 고딕',sans-serif;width:700px;height:990px;margin:0 auto;padding:5mm;border:1px solid #bbb;box-sizing:border-box;overflow:hidden}
 .doc-expense table{width:100%;border-collapse:collapse;table-layout:fixed}
@@ -610,7 +588,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="bmark">◇</div>
     <div class="brand-text">
-      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.1</span></div>
+      <div class="bname">Semo<em>View</em> Daily <span style="font-size:11px;font-family:'DM Sans',sans-serif;color:var(--dim);font-weight:400;letter-spacing:0;vertical-align:middle">v2.3</span></div>
       <div class="bsub"><a href="https://blog.naver.com/skycreation" target="_blank">blog.naver.com/skycreation ↗</a></div>
     </div>
   </div>
@@ -694,9 +672,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
       <div class="sb-sub">
         <button class="sb-item" onclick="nav('order',this)">
           <span class="icon">📋</span><span class="label">발주서</span>
-        </button>
-        <button class="sb-item" onclick="nav('report',this)">
-          <span class="icon">📝</span><span class="label">업무 보고일지</span>
         </button>
         <button class="sb-item" onclick="nav('expense',this)">
           <span class="icon">💰</span><span class="label">지출결의서</span>
@@ -905,50 +880,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
       </div>
     </div>
 
-    <!-- 📝 업무 보고일지 -->
-    <div class="page" id="page-report">
-      <div class="page-header">
-        <div><div class="page-title">📝 업무 보고일지</div><div class="page-sub">일일 업무 기록 · 출력</div></div>
-      </div>
-      <div class="page-body" id="reportBody">
-        <div class="doc-ui-wrap">
-          <div class="doc-tabs">
-            <button class="doc-tab on" id="rt-write" onclick="docTab('report','write')">✏️ 작성</button>
-            <button class="doc-tab" id="rt-list" onclick="docTab('report','list')">📂 저장 목록</button>
-            <button class="doc-tab" id="rt-preview" onclick="docTab('report','preview')">👁 미리보기·출력</button>
-          </div>
-          <div class="doc-pane on" id="rp-write">
-            <div class="doc-form-card">
-              <input type="hidden" id="r-editId">
-              <div class="doc-grid2">
-                <div class="doc-field"><div class="doc-lbl">보고자명</div><input class="doc-inp" id="r-reporter" placeholder="이름"></div>
-                <div class="doc-field"><div class="doc-lbl">보고일자</div><input class="doc-inp" id="r-date" type="date"></div>
-              </div>
-              <div class="doc-lbl" style="margin-bottom:8px">업무 내용</div>
-              <div id="rWorkRows"></div>
-              <button class="doc-add-btn" onclick="rAddRow()">+ 업무 행 추가 (최대 10개)</button>
-              <div class="doc-actions">
-                <button class="doc-btn ghost" onclick="rReset()">↺ 초기화</button>
-                <button class="doc-btn blue" onclick="rPreview()">👁 미리보기</button>
-                <button class="doc-btn gold" onclick="rSave()">💾 저장</button>
-              </div>
-            </div>
-          </div>
-          <div class="doc-pane" id="rp-list"><div id="rListBody"></div></div>
-          <div class="doc-pane" id="rp-preview">
-            <div class="doc-preview-bar">
-              <span style="font-size:12px;color:var(--dim)">📄 A4 가로 기준 · 인쇄 시 용지방향: 가로</span>
-              <div style="display:flex;gap:8px">
-                <button class="doc-btn ghost" onclick="docTab('report','write')">← 수정</button>
-                <button class="doc-btn blue" onclick="printLandscape()">🖨 인쇄·PDF</button>
-              </div>
-            </div>
-            <div id="rPreviewDoc" style="overflow-x:auto"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- 💰 지출결의서 -->
     <div class="page" id="page-expense">
       <div class="page-header">
@@ -1090,7 +1021,6 @@ function nav(page,el){
   if(page==='aimoving') loadAimoving();
   if(page==='calendar') renderCalendar();
   if(page==='order')   initOrder();
-  if(page==='report')  initReport();
   if(page==='expense') initExpense();
   // close sidebar on mobile
   closeSidebar();
@@ -2753,8 +2683,8 @@ function renderAimoving(csv){
 //  회사문서 공통
 // ══════════════════════════════════════════════
 function docTab(doc,pane){
-  const pfx={order:'o',report:'r',expense:'e'}[doc];
-  const tabs={order:['write','list','preview'],report:['write','list','preview'],expense:['write','list','preview']};
+  const pfx={order:'o',expense:'e'}[doc];
+  const tabs={order:['write','list','preview'],expense:['write','list','preview']};
   tabs[doc].forEach(t=>{
     const tabEl=document.getElementById(`${pfx[0]}t-${t}`)||document.getElementById(`${pfx}t-${t}`);
     const paneEl=document.getElementById(`${pfx[0]}p-${t}`)||document.getElementById(`${pfx}p-${t}`);
@@ -2763,8 +2693,6 @@ function docTab(doc,pane){
   });
   if(doc==='order'&&pane==='list')oRenderList();
   if(doc==='order'&&pane==='preview')oRenderPreview(oCollect());
-  if(doc==='report'&&pane==='list')rRenderList();
-  if(doc==='report'&&pane==='preview')rRenderPreview(rCollect());
   if(doc==='expense'&&pane==='list')eRenderList();
   if(doc==='expense'&&pane==='preview')eRenderPreview(eCollect());
 }
@@ -2868,110 +2796,6 @@ function oRenderPreview(doc){
       <tr><td class="td-lbl">담당자명<br>(조합장명)</td><td class="td-val" style="height:42px">${docEsc(doc.manager)}</td><td class="td-lbl">연&nbsp;&nbsp;락&nbsp;&nbsp;처</td><td class="td-val">${docEsc(doc.phone)}</td></tr>
       <tr><td class="td-lbl">상&nbsp;&nbsp;품&nbsp;&nbsp;명</td><td class="td-val" style="height:39px">${docEsc(doc.product)}</td><td class="td-lbl">마&nbsp;감&nbsp;기&nbsp;한</td><td class="td-val">${docFmtDateShort(doc.deadline)}</td></tr>
       <tr style="height:100%"><td class="td-note" colspan="4">${note}</td></tr>
-    </table>
-  </div>`;
-}
-
-// ── 업무 보고일지 ────────────────────────────
-const R_KEY='sv-docs-report';
-const rLoad=()=>{try{return JSON.parse(localStorage.getItem(R_KEY)||'[]');}catch(_){return[];}};
-const rStore=l=>localStorage.setItem(R_KEY,JSON.stringify(l));
-let rRowCount=0;
-
-function initReport(){
-  if(!document.getElementById('r-date').value)
-    document.getElementById('r-date').value=docTodayISO();
-  if(!document.getElementById('rWorkRows').children.length){
-    rRowCount=0;rAddRow();rAddRow();rAddRow();
-  }
-}
-function rAddRow(name='',content=''){
-  if(document.querySelectorAll('.r-work-row').length>=10){alert('최대 10개까지 추가 가능합니다.');return;}
-  const id=rRowCount++;const d=document.createElement('div');
-  d.className='r-work-row';d.dataset.id=id;
-  d.innerHTML=`<textarea class="r-work-inp" placeholder="업무명" data-rf="name">${docEsc(name)}</textarea>
-    <textarea class="r-work-inp" placeholder="업무 내용" data-rf="content">${docEsc(content)}</textarea>
-    <button class="r-del-btn" onclick="rDelRow(${id})">✕</button>`;
-  document.getElementById('rWorkRows').appendChild(d);
-}
-function rDelRow(id){document.querySelector(`.r-work-row[data-id="${id}"]`)?.remove();}
-function rCollect(){
-  const rows=[...document.querySelectorAll('.r-work-row')].map(r=>({
-    name:r.querySelector('[data-rf="name"]').value.trim(),
-    content:r.querySelector('[data-rf="content"]').value.trim()
-  })).filter(r=>r.name||r.content);
-  return{id:document.getElementById('r-editId').value||(Date.now()+''),createdAt:new Date().toISOString(),
-    reporter:document.getElementById('r-reporter').value.trim(),
-    date:document.getElementById('r-date').value,rows};
-}
-function rFill(doc){
-  document.getElementById('r-editId').value=doc.id;
-  document.getElementById('r-reporter').value=doc.reporter||'';
-  document.getElementById('r-date').value=doc.date||docTodayISO();
-  document.getElementById('rWorkRows').innerHTML='';rRowCount=0;
-  (doc.rows||[]).forEach(r=>rAddRow(r.name,r.content));
-  if(!(doc.rows?.length)){rAddRow();rAddRow();rAddRow();}
-}
-function rReset(){
-  document.getElementById('r-editId').value='';
-  document.getElementById('r-reporter').value='';
-  document.getElementById('r-date').value=docTodayISO();
-  document.getElementById('rWorkRows').innerHTML='';rRowCount=0;
-  rAddRow();rAddRow();rAddRow();
-}
-function rSave(){
-  const doc=rCollect();if(!doc.reporter&&!doc.rows.length){alert('보고자명 또는 업무 내용을 입력해주세요.');return;}
-  const list=rLoad();const idx=list.findIndex(d=>d.id===doc.id);
-  if(idx>=0)list[idx]=doc;else list.unshift(doc);
-  if(list.length>50)list.length=50;rStore(list);
-  document.getElementById('r-editId').value=doc.id;alert('저장 완료!');
-}
-function rPreview(){rRenderPreview(rCollect());docTab('report','preview');}
-function rRenderList(){
-  const body=document.getElementById('rListBody');const list=rLoad();
-  if(!list.length){body.innerHTML='<div class="empty">저장된 보고일지가 없습니다.</div>';return;}
-  body.innerHTML=list.map((doc,i)=>`<div class="doc-list-item" style="animation-delay:${i*.05}s">
-    <div class="doc-list-title">${docFmtDate(doc.date)} — ${docEsc(doc.reporter)||'(보고자 없음)'}</div>
-    <div class="doc-list-meta"><span>업무 ${doc.rows?.length||0}건</span>${doc.rows?.slice(0,3).map(r=>`<span>${docEsc(r.name)}</span>`).join('')||''}</div>
-    <div class="doc-list-actions">
-      <button class="doc-btn ghost" style="font-size:12px;padding:5px 11px" onclick="rEdit('${doc.id}')">✏️ 수정</button>
-      <button class="doc-btn blue" style="font-size:12px;padding:5px 11px" onclick="rViewPreview('${doc.id}')">👁 출력</button>
-      <button class="doc-btn ghost" style="font-size:12px;padding:5px 11px;color:var(--red);border-color:rgba(224,85,85,.3)" onclick="rDel('${doc.id}')">🗑 삭제</button>
-    </div>
-  </div>`).join('');
-}
-function rEdit(id){const doc=rLoad().find(d=>d.id===id);if(doc){rFill(doc);docTab('report','write');}}
-function rViewPreview(id){const doc=rLoad().find(d=>d.id===id);if(doc){rRenderPreview(doc);docTab('report','preview');}}
-function rDel(id){if(!confirm('삭제하시겠습니까?'))return;rStore(rLoad().filter(d=>d.id!==id));rRenderList();}
-function rRenderPreview(doc){
-  const rows=[...(doc.rows||[])];while(rows.length<9)rows.push({name:'',content:''});
-  const rowsHTML=rows.map(r=>`<tr style="height:52px"><td class="wd-name">${docEsc(r.name)}</td><td class="wd-content">${docEsc(r.content)}</td></tr>`).join('');
-  document.getElementById('rPreviewDoc').innerHTML=`<div class="doc-report" id="print-area">
-    <!-- 결재란: position:absolute 우측 상단 -->
-    <table class="approval">
-      <tr>
-        <td class="ap-label" rowspan="2">결&nbsp;재</td>
-        <td class="ap-head">담당</td>
-        <td class="ap-head">이사</td>
-        <td class="ap-head">대표이사</td>
-      </tr>
-      <tr>
-        <td class="ap-sign"></td>
-        <td class="ap-sign"></td>
-        <td class="ap-sign"></td>
-      </tr>
-    </table>
-    <!-- 제목 (좌측) -->
-    <div class="doc-title">일일&nbsp;&nbsp;업무&nbsp;&nbsp;보고일지</div>
-    <!-- 보고자 정보 -->
-    <table class="info-table">
-      <tr><td class="info-lbl">보고자명</td><td class="info-val">${docEsc(doc.reporter)}</td></tr>
-      <tr><td class="info-lbl">보고일자</td><td class="info-val">${docFmtDate(doc.date)}</td></tr>
-    </table>
-    <!-- 업무 테이블 -->
-    <table class="work-table">
-      <tr><th class="wh-name">업&nbsp;&nbsp;무&nbsp;&nbsp;명</th><th class="wh-content">업&nbsp;&nbsp;무&nbsp;&nbsp;내&nbsp;&nbsp;용</th></tr>
-      ${rowsHTML}
     </table>
   </div>`;
 }
@@ -3100,16 +2924,6 @@ function save(){
 // ══════════════════════════════════════════════
 function openHelp(){document.getElementById('helpOverlay').classList.add('show');}
 function closeHelp(){document.getElementById('helpOverlay').classList.remove('show');}
-
-// 가로 방향 인쇄 (업무 보고일지)
-function printLandscape(){
-  const style=document.createElement('style');
-  style.id='__landscape_print__';
-  style.textContent='@media print{@page{size:A4 landscape;margin:0}.doc-report#print-area{width:297mm !important;height:210mm !important}}';
-  document.head.appendChild(style);
-  window.print();
-  setTimeout(()=>document.getElementById('__landscape_print__')?.remove(),1000);
-}
 document.getElementById('evModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('helpOverlay').addEventListener('click',function(e){if(e.target===this)closeHelp();});
 </script>
