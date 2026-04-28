@@ -207,6 +207,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--white);font-family:'
   <div class="code-wrap">
     <input class="code-inp-big" id="user-code" placeholder="박스 코드 입력" maxlength="36"
       onkeydown="if(event.key==='Enter')claimBox()">
+    <input class="inp" id="user-name" placeholder="수령인 이름 (예: 홍길동)" style="margin-bottom:10px;text-align:center;font-size:15px">
     <button class="btn btn-gold" style="width:100%;padding:13px" onclick="claimBox()">📬 박스 수령</button>
     <div id="claim-status" class="status" style="display:none"></div>
   </div>
@@ -242,8 +243,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--white);font-family:'
       </div>
     </div>
 
-    <button class="btn btn-ghost" onclick="closeOverlay()"
-      style="position:absolute;top:-40px;right:0;font-size:12px;padding:6px 12px">✕ 닫기</button>
+
   </div>
 </div>
 
@@ -346,7 +346,7 @@ function renderAdminItems(){
     return `<div class="item-row anim-up">
       <div class="grade-badge" style="color:${gInfo?.color||'#aaa'}">${g} <span style="opacity:.5;font-size:10px">${pct}</span></div>
       <input class="inp" style="font-size:13px;padding:8px 12px" placeholder="상품명 입력"
-        value="${item.text}" oninput="(function(id){const found=adminItems.find(x=>x.id===id);if(found)found.text=this.value;})(${item.id})">
+        value="${item.text}" oninput="(function(el,id){const found=adminItems.find(x=>x.id===id);if(found)found.text=el.value;})(this,${item.id})">
       <button class="del-item" onclick="removeAdminItem(${item.id})">✕</button>
     </div>`;
   }).join('');
@@ -428,6 +428,7 @@ let vault = JSON.parse(localStorage.getItem('mb-vault')||'[]');
 
 async function claimBox(){
   const code = document.getElementById('user-code').value.trim();
+  const userName = document.getElementById('user-name').value.trim();
   const st = document.getElementById('claim-status');
   if(!code){alert('코드를 입력해주세요.');return;}
 
@@ -452,10 +453,11 @@ async function claimBox(){
     if(box.isExpired){st.className='status err'; st.textContent='유효기간이 만료된 박스입니다.'; return;}
     if(box.isExhausted||box.isOpened){st.className='status err'; st.textContent='이미 모두 개봉된 박스입니다.'; return;}
 
-    vault.unshift({uuid:box.uuid, name:box.name, items:box.items, expires:box.expires, opened:false});
+    vault.unshift({uuid:box.uuid, name:box.name, items:box.items, expires:box.expires, opened:false, userName:userName});
     localStorage.setItem('mb-vault', JSON.stringify(vault));
     st.className='status ok'; st.textContent='✓ 박스가 보관함에 추가됐습니다!';
     document.getElementById('user-code').value='';
+    document.getElementById('user-name').value='';
     renderVault();
   }catch(e){
     st.className='status err'; st.textContent='네트워크 오류.';
@@ -551,19 +553,19 @@ async function startOpen(){
     try{
       await fetch(`https://corsproxy.io/?${encodeURIComponent(API)}`,{
         method:'POST', headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'open', uuid:currentBoxUUID, grade:result.grade, item:result.item})
+        body:JSON.stringify({action:'open', uuid:currentBoxUUID, grade:result.grade, item:result.item, memo:vault.find(b=>b.uuid===currentBoxUUID)?.userName||''})
       });
     }catch(e){
       await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(API)}`,{
         method:'POST', headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'open', uuid:currentBoxUUID, grade:result.grade, item:result.item})
+        body:JSON.stringify({action:'open', uuid:currentBoxUUID, grade:result.grade, item:result.item, memo:vault.find(b=>b.uuid===currentBoxUUID)?.userName||''})
       });
     }
   }catch(e){}
 
   // 보관함 업데이트
   const vb = vault.find(b=>b.uuid===currentBoxUUID);
-  if(vb) vb.opened=true;
+  if(vb){ vb.opened=true; vb.result={grade:result.grade, item:result.item, color:result.gInfo?.color||'#aaa'}; }
   localStorage.setItem('mb-vault', JSON.stringify(vault));
   renderVault();
 
