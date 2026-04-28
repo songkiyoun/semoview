@@ -272,6 +272,23 @@ const GRADES = [
 ];
 
 // 상품 수에 따른 등급 자동배정
+
+function copyBoxLink(uuid){
+  const shareUrl = location.href.split('?')[0]+'?box='+uuid;
+  if(navigator.clipboard&&location.protocol==='https:'){
+    navigator.clipboard.writeText(shareUrl).then(()=>alert('링크 복사됨!\n'+shareUrl)).catch(fallback);
+  } else {
+    fallback();
+  }
+  function fallback(){
+    const t=document.createElement('textarea');
+    t.value=shareUrl;t.style.position='fixed';t.style.opacity='0';
+    document.body.appendChild(t);t.select();
+    document.execCommand('copy');
+    document.body.removeChild(t);
+    alert('링크 복사됨!\n'+shareUrl);
+  }
+}
 function assignGrades(count) {
   if(count === 0) return [];
   const gradeOrder = ['SSS','SS','S','A','B','C','D','E','F'];
@@ -386,7 +403,7 @@ async function loadAdminBoxes(){
     if(!data.ok||!data.boxes?.length){list.innerHTML='<div class="empty">생성된 박스가 없습니다</div>';return;}
     list.innerHTML = data.boxes.map(box=>{
       const shareUrl = location.href.split('?')[0]+'?box='+box.uuid;
-      const isExp = box.expires&&new Date(box.expires)<new Date();
+      const isExp = box.expires&&new Date(box.expires.split('T')[0]+'T23:59:59')<new Date();
       return `<div class="box-card anim-up">
         <div class="box-card-title">${box.name}</div>
         <div class="box-card-meta">
@@ -397,7 +414,7 @@ async function loadAdminBoxes(){
         <input class="copy-input" value="${box.uuid}" readonly onclick="this.select();document.execCommand('copy');this.value='복사됨!';setTimeout(()=>this.value=this.defaultValue,1500)">
         <div class="box-card-actions" style="margin-top:8px">
           <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px"
-            onclick="(navigator.clipboard?navigator.clipboard.writeText('${shareUrl}').then(()=>alert('링크 복사됨!')):Promise.reject()).catch(()=>{const t=document.createElement('textarea');t.value='${shareUrl}';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('링크 복사됨!');})">🔗 링크 복사</button>
+            onclick="copyBoxLink('${box.uuid}')">🔗 링크 복사</button>
         </div>
       </div>`;
     }).join('');
@@ -454,8 +471,8 @@ function renderVault(){
     vaultEl.innerHTML='<div class="empty" style="grid-column:1/-1">수령한 박스가 없습니다</div>'; return;
   }
   vaultEl.innerHTML = all.map(box=>`
-    <div class="vault-box ${box.opened?'opened':''}" onclick="${box.opened?'':''}" 
-      ${!box.opened?`onclick="openBoxUI('${box.uuid}')"`:''}
+    <div class="vault-box ${box.opened?'opened':''}" 
+      ${!box.opened?`onclick="openBoxUI('${box.uuid}')"`:'style="pointer-events:none"'}
     >
       <span class="box-icon">${box.opened?'📭':'🎁'}</span>
       <div class="box-name">${box.name}</div>
