@@ -231,9 +231,15 @@ html,body{min-height:100vh;background:var(--bg);color:#fff;font-family:'Noto Ser
     <button class="btn btn-gold btn-full" onclick="createBox()">🎁 박스 생성하기</button>
   </div>
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
     <div style="font-size:13px;color:var(--mid);font-weight:700">생성된 박스</div>
     <button class="btn btn-ghost" style="font-size:11px;padding:5px 11px" onclick="loadAdminBoxes()">↻ 새로고침</button>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="boxFilters">
+    <button class="preset-btn on" onclick="setBoxFilter('all',this)">전체</button>
+    <button class="preset-btn" onclick="setBoxFilter('active',this)">활성화</button>
+    <button class="preset-btn" onclick="setBoxFilter('inactive',this)">비활성화</button>
+    <button class="preset-btn" onclick="setBoxFilter('expired',this)">기간만료</button>
   </div>
   <div class="box-list" id="adminBoxList"><div class="empty">로딩 중...</div></div>
 </div>
@@ -532,33 +538,77 @@ async function deactivateBox(uuid){
   }catch(e){alert('네트워크 오류');}
 }
 
+let allBoxesCache=[];
+let currentBoxFilter='all';
+
+function setBoxFilter(filter, el){
+  currentBoxFilter=filter;
+  document.querySelectorAll('#boxFilters .preset-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  renderBoxList();
+}
+
+function renderBoxList(){
+  const list=document.getElementById('adminBoxList');
+  if(!allBoxesCache.length){list.innerHTML='<div class="empty">생성된 박스가 없습니다</div>';return;}
+  const now=new Date();
+  const filtered=allBoxesCache.filter(box=>{
+    const isExp=box.expires&&new Date(box.expires.split('T')[0]+'T23:59:59')<now;
+    const isActive=box.status==='활성'&&!isExp;
+    const isInactive=box.status!=='활성';
+    if(currentBoxFilter==='active') return isActive;
+    if(currentBoxFilter==='inactive') return isInactive;
+    if(currentBoxFilter==='expired') return isExp;
+    return true;
+  });
+  if(!filtered.length){list.innerHTML='<div class="empty">해당하는 박스가 없습니다</div>';return;}
+  list.innerHTML=filtered.map(box=>{
+    const isExp=box.expires&&new Date(box.expires.split('T')[0]+'T23:59:59')<new Date();
+    const inactive=box.status!=='활성';
+    return `<div class="box-card ${inactive?'inactive':''} anim-up">
+      <div class="box-card-title">${esc(box.name)} ${inactive?'<span style="font-size:10px;color:#ff6b6b">비활성</span>':''}</div>
+      <div class="box-card-meta">
+        <span>상품 ${box.items?.length||0}종</span>
+        <span>개봉 ${box.openCount||0}${box.limit?'/'+box.limit:''}</span>
+        ${box.expires?(isExp?'<span style="color:#ff6b6b">~'+box.expires.split('T')[0]+' (만료)</span>':'<span>~'+box.expires.split('T')[0]+'</span>'):''}
+        <span>${box.animType||'상자'}형</span>
+      </div>
+      <input class="copy-input" value="${box.uuid}" readonly onclick="this.select();document.execCommand('copy')">
+      <div class="box-card-actions" style="margin-top:8px">
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="copyBoxLink('${box.uuid}')">🔗 링크</button>
+        ${!inactive?`<button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="deactivateBox('${box.uuid}')">🔒 비활성화</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 async function loadAdminBoxes(){
   const list=document.getElementById('adminBoxList');
   list.innerHTML='<div class="empty">불러오는 중...</div>';
   try{
     const res=await apiGet({action:'list'});
     const data=await res.json();
-    if(!data.ok||!data.boxes?.length){list.innerHTML='<div class="empty">생성된 박스가 없습니다</div>';return;}
-    list.innerHTML=data.boxes.map(box=>{
-      const isExp=box.expires&&new Date(box.expires.split('T')[0]+'T23:59:59')<new Date();
-      const inactive=box.status!=='활성';
-      return `<div class="box-card ${inactive?'inactive':''} anim-up">
-        <div class="box-card-title">${esc(box.name)} ${inactive?'<span style="font-size:10px;color:#ff6b6b">비활성</span>':''}</div>
-        <div class="box-card-meta">
-          <span>상품 ${box.items?.length||0}종</span>
-          <span>개봉 ${box.openCount||0}${box.limit?'/'+box.limit:''}</span>
-          ${box.expires?(isExp?'<span style="color:#ff6b6b">~'+box.expires.split('T')[0]+' (만료)</span>':'<span>~'+box.expires.split('T')[0]+'</span>'):''}
-          <span>${box.animType||'상자'}형</span>
-        </div>
-        <input class="copy-input" value="${box.uuid}" readonly onclick="this.select();document.execCommand('copy')">
-        <div class="box-card-actions" style="margin-top:8px">
-          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="copyBoxLink('${box.uuid}')">🔗 링크</button>
-          ${!inactive?`<button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="deactivateBox('${box.uuid}')">🔒 비활성화</button>`:''}
-        </div>
-      </div>`;
-    }).join('');
+    if(!data.ok){list.innerHTML='<div class="empty">로드 실패</div>';return;}
+    allBoxesCache=[...(data.boxes||[])].reverse();
+    renderBoxList();
   }catch(e){list.innerHTML='<div class="empty">로드 실패</div>';}
 }
+
+function copyBoxLink(uuid){
+  const url=location.href.split('?')[0]+'?box='+uuid;
+  if(navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(url).then(()=>alert('✓ 링크 복사됨!')).catch(()=>promptCopy(url));
+  } else {
+    const t=document.createElement('textarea');
+    t.value=url;t.style.cssText='position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(t);t.focus();t.select();
+    const ok=document.execCommand('copy');
+    document.body.removeChild(t);
+    if(ok) alert('✓ 링크 복사됨!');
+    else promptCopy(url);
+  }
+}
+function promptCopy(url){prompt('아래 링크를 직접 복사하세요 (Ctrl+C):',url);}
 
 // ══ 통계 ══
 async function loadStats(){
