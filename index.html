@@ -612,6 +612,7 @@ async function claimBox(){
   const userName=document.getElementById('user-name').value.trim();
   const st=document.getElementById('claim-status');
   if(!code){alert('코드를 입력해주세요.');return;}
+  if(!userName){alert('수령인 이름을 입력해주세요.');return;}
   if(vault.find(b=>b.uuid===code)){st.style.display='block';st.className='status err';st.textContent='이미 보관함에 있는 박스입니다.';return;}
   st.style.display='block';st.className='status loading';st.textContent='확인 중...';
   try{
@@ -812,17 +813,20 @@ function roll(items,allowBlank){
   });
 
   if(allowBlank){
-    // 고정 확률로 뽑기
-    const rand=Math.random()*100;let cum=0;
+    // 고정 확률: 배정 안 된 등급 당첨 시 꽝
+    const rand=Math.random()*100; let cum=0;
     for(const g of GRADES){
-      cum+=g.pct;
-      const match=pool.filter(p=>p.grade===g.grade);
-      if(rand<=cum){
-        if(!match.length)return{grade:g.grade,item:'꽝',gInfo:g};
+      if(rand>=cum && rand<cum+g.pct){
+        const match=pool.filter(p=>p.grade===g.grade);
+        if(!match.length) return{grade:g.grade,item:'꽝',gInfo:g};
         return match[Math.floor(Math.random()*match.length)];
       }
+      cum+=g.pct;
     }
-    return pool[pool.length-1];
+    // fallback: 마지막 등급
+    const last=GRADES[GRADES.length-1];
+    const match=pool.filter(p=>p.grade===last.grade);
+    return match.length?match[0]:{grade:last.grade,item:'꽝',gInfo:last};
   } else {
     // 배정된 등급만 재분배
     const assignedGrades=[...new Set(pool.map(p=>p.grade))];
