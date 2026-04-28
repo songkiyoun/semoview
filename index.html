@@ -268,7 +268,7 @@ const GRADES = [
   {grade:'C',   pct:15,     color:'#6fd18a'},
   {grade:'D',   pct:25,     color:'#7ecbe6'},
   {grade:'E',   pct:30,     color:'#aaa'},
-  {grade:'F',   pct:23.898, color:'#888'},
+  {grade:'F',   pct:23.8989, color:'#888'},
 ];
 
 // 상품 수에 따른 등급 자동배정
@@ -329,7 +329,7 @@ function renderAdminItems(){
     return `<div class="item-row anim-up">
       <div class="grade-badge" style="color:${gInfo?.color||'#aaa'}">${g} <span style="opacity:.5;font-size:10px">${pct}</span></div>
       <input class="inp" style="font-size:13px;padding:8px 12px" placeholder="상품명 입력"
-        value="${item.text}" oninput="adminItems[${i}].text=this.value">
+        value="${item.text}" oninput="(function(id){const found=adminItems.find(x=>x.id===id);if(found)found.text=this.value;})(${item.id})">
       <button class="del-item" onclick="removeAdminItem(${item.id})">✕</button>
     </div>`;
   }).join('');
@@ -392,12 +392,12 @@ async function loadAdminBoxes(){
         <div class="box-card-meta">
           <span>상품 ${box.items?.length||0}개</span>
           <span>개봉 ${box.openCount}회${box.limit?'/'+box.limit:''}회</span>
-          ${box.expires?`<span ${isExp?'style="color:#ff6b6b"'}>~${box.expires}${isExp?' (만료)':''}</span>`:''}
+          ${box.expires?('<span '+(isExp?'style="color:#ff6b6b"':'')+'>~'+box.expires+(isExp?' (만료)':'')+'</span>'):''}
         </div>
-        <input class="copy-input" value="${box.uuid}" readonly onclick="this.select();document.execCommand('copy');this.value='복사됨!';setTimeout(()=>this.value='${box.uuid}',1500)">
+        <input class="copy-input" value="${box.uuid}" readonly onclick="this.select();document.execCommand('copy');this.value='복사됨!';setTimeout(()=>this.value=this.defaultValue,1500)">
         <div class="box-card-actions" style="margin-top:8px">
           <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px"
-            onclick="navigator.clipboard.writeText('${shareUrl}').then(()=>alert('링크 복사됨!'))">🔗 링크 복사</button>
+            onclick="(navigator.clipboard?navigator.clipboard.writeText('${shareUrl}').then(()=>alert('링크 복사됨!')):Promise.reject()).catch(()=>{const t=document.createElement('textarea');t.value='${shareUrl}';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('링크 복사됨!');})">🔗 링크 복사</button>
         </div>
       </div>`;
     }).join('');
@@ -501,7 +501,7 @@ async function startOpen(){
 
   // 실제 확률 계산
   const vaultBox = vault.find(b=>b.uuid===currentBoxUUID);
-  const result = roll(vaultBox?.items||[]);
+  const result = roll(vaultBox?.items||[{grade:'F',name:'꽝'}]);
 
   // 등급별 조명
   const stage = document.getElementById('openStage');
