@@ -79,8 +79,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--white);font-family:'
 .vault-box .box-icon{font-size:36px;margin-bottom:8px;display:block}
 .vault-box .box-name{font-size:12px;color:var(--mid);font-weight:700;margin-bottom:4px}
 .vault-box .box-expires{font-size:10px;color:var(--dim);font-family:'DM Mono',monospace}
-.vault-box.opened{opacity:.4;pointer-events:none}
-.vault-box.opened::after{content:'OPENED';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-20deg);font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:#ff6b6b;border:1.5px solid #ff6b6b;padding:3px 8px;border-radius:4px}
+.vault-box.opened{pointer-events:none}
 
 /* ══ 개봉 오버레이 ══ */
 .open-overlay{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.92);backdrop-filter:blur(12px)}
@@ -181,6 +180,12 @@ html,body{min-height:100vh;background:var(--bg);color:var(--white);font-family:'
         <div class="label">발급 수량 (0=무제한)</div>
         <input class="inp" id="admin-limit" type="number" value="1" min="0">
       </div>
+      <div class="field" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" id="admin-show-items" style="width:18px;height:18px;accent-color:var(--gold)">
+          <span style="font-size:13px;color:var(--mid)">수령자에게 상품 목록 공개 <span style="color:var(--dim);font-size:11px">(열기 전 목록 확인 가능)</span></span>
+        </label>
+      </div>
     </div>
 
     <div class="label" style="margin-bottom:8px">상품 목록</div>
@@ -247,6 +252,18 @@ html,body{min-height:100vh;background:var(--bg);color:var(--white);font-family:'
   </div>
 </div>
 
+
+<!-- 상품 목록 모달 -->
+<div class="open-overlay" id="itemsModal" style="align-items:center">
+  <div style="background:#14141f;border:1px solid var(--border);border-radius:20px;padding:28px 24px;max-width:340px;width:90%;position:relative">
+    <button onclick="document.getElementById('itemsModal').classList.remove('show')"
+      style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer">✕</button>
+    <div style="font-size:16px;font-weight:700;color:var(--gold);margin-bottom:4px" id="itemsModalTitle">🎁 박스</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:16px">이 박스에 담긴 상품 목록</div>
+    <div id="itemsModalList" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div>
+    <button class="btn btn-gold" style="width:100%;margin-top:18px" id="itemsModalOpenBtn">🎁 지금 열기</button>
+  </div>
+</div>
 <!-- SSS 이펙트 -->
 <div class="sss-burst" id="sssBurst">
   <div>
@@ -256,7 +273,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--white);font-family:'
 </div>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycby30OLPJx2iom5HRKvOcS0zJZPRuXJTYSSfwGCUV1ZuGlucCn8m-n15NDUJVMjeQC-Xbw/exec';
+const API = 'https://script.google.com/macros/s/AKfycbzIAkczdJvxofOCdWmc_m9xiemfJnflQRZvvLZ1ll6EC2tY-gfg4rIG5tRoTAzJVfwstg/exec';
 
 // 등급 정의
 const GRADES = [
@@ -356,6 +373,7 @@ async function createBox(){
   const name = document.getElementById('admin-name').value.trim();
   const expires = document.getElementById('admin-expires').value;
   const limit = parseInt(document.getElementById('admin-limit').value)||0;
+  const showItems = document.getElementById('admin-show-items').checked;
   const st = document.getElementById('admin-status');
 
   if(!name){alert('박스 이름을 입력해주세요.');return;}
@@ -371,12 +389,12 @@ async function createBox(){
     try{
       res = await fetch(`https://corsproxy.io/?${encodeURIComponent(API)}`,{
         method:'POST', headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'create', name, items, expires, limit})
+        body:JSON.stringify({action:'create', name, items, expires, limit, showItems})
       });
     }catch(e){
       res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(API)}`,{
         method:'POST', headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'create', name, items, expires, limit})
+        body:JSON.stringify({action:'create', name, items, expires, limit, showItems})
       });
     }
     const data = await res.json();
@@ -453,7 +471,7 @@ async function claimBox(){
     if(box.isExpired){st.className='status err'; st.textContent='유효기간이 만료된 박스입니다.'; return;}
     if(box.isExhausted||box.isOpened){st.className='status err'; st.textContent='이미 모두 개봉된 박스입니다.'; return;}
 
-    vault.unshift({uuid:box.uuid, name:box.name, items:box.items, expires:box.expires, opened:false, userName:userName});
+    vault.unshift({uuid:box.uuid, name:box.name, items:box.items, expires:box.expires, opened:false, userName:userName, showItems:box.showItems||false});
     localStorage.setItem('mb-vault', JSON.stringify(vault));
     st.className='status ok'; st.textContent='✓ 박스가 보관함에 추가됐습니다!';
     document.getElementById('user-code').value='';
@@ -474,11 +492,16 @@ function renderVault(){
   }
   vaultEl.innerHTML = all.map(box=>`
     <div class="vault-box ${box.opened?'opened':''}" 
-      ${!box.opened?`onclick="openBoxUI('${box.uuid}')"`:'style="pointer-events:none"'}
+      ${!box.opened?`onclick="handleVaultClick('${box.uuid}')"`:'style="pointer-events:none;opacity:.8"'}
     >
       <span class="box-icon">${box.opened?'📭':'🎁'}</span>
       <div class="box-name">${box.name}</div>
-      ${box.expires?`<div class="box-expires">~${box.expires}</div>`:''}
+      ${box.opened&&box.result
+        ? `<div style="font-size:13px;font-weight:700;color:${box.result.color||'#aaa'};margin-top:4px">${box.result.grade}등급</div>
+           <div style="font-size:11px;color:#fff;margin-top:2px;word-break:keep-all;line-height:1.4">${box.result.item}</div>
+           ${(box.result.userName||box.userName)?`<div style="font-size:10px;color:var(--gold);margin-top:4px;font-family:'DM Mono',monospace">👤 ${box.result.userName||box.userName}</div>`:''}`
+        : box.expires&&!box.opened?`<div class="box-expires">~${box.expires.split('T')[0]}</div>`:''
+      }
     </div>`).join('');
 }
 
@@ -486,6 +509,32 @@ function renderVault(){
 let currentBoxUUID = '';
 let openPhase = 0; // 0:대기 1:흔들기 2:열리는중 3:결과
 
+
+function handleVaultClick(uuid){
+  const box = vault.find(b=>b.uuid===uuid);
+  if(!box||box.opened) return;
+  if(box.showItems){
+    showItemsModal(box);
+  } else {
+    openBoxUI(uuid);
+  }
+}
+
+function showItemsModal(box){
+  document.getElementById('itemsModalTitle').textContent='🎁 '+box.name;
+  const grades = ['SSS','SS','S','A','B','C','D','E','F'];
+  const list = document.getElementById('itemsModalList');
+  list.innerHTML = (box.items||[]).map((item,i)=>`
+    <div style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">🎁</span>
+      <span style="font-size:14px;color:#fff;font-weight:600">${item.name||'(상품명 없음)'}</span>
+    </div>`).join('');
+  document.getElementById('itemsModalOpenBtn').onclick = ()=>{
+    document.getElementById('itemsModal').classList.remove('show');
+    openBoxUI(box.uuid);
+  };
+  document.getElementById('itemsModal').classList.add('show');
+}
 function openBoxUI(uuid){
   currentBoxUUID = uuid;
   openPhase = 0;
@@ -565,7 +614,7 @@ async function startOpen(){
 
   // 보관함 업데이트
   const vb = vault.find(b=>b.uuid===currentBoxUUID);
-  if(vb){ vb.opened=true; vb.result={grade:result.grade, item:result.item, color:result.gInfo?.color||'#aaa'}; }
+  if(vb){ vb.opened=true; vb.result={grade:result.grade, item:result.item, color:result.gInfo?.color||'#aaa', userName:vb.userName||''}; }
   localStorage.setItem('mb-vault', JSON.stringify(vault));
   renderVault();
 
