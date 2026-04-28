@@ -2,125 +2,111 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>고마워요 미스테리 박스 🎁</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#0a0a0f;
-  --card:rgba(255,255,255,.04);
-  --border:rgba(255,255,255,.08);
-  --gold:#e8c87a;
-  --gold2:#f5e0a0;
-  --dim:rgba(255,255,255,.35);
-  --mid:rgba(255,255,255,.65);
-  --white:#fff;
-  /* 등급 색상 */
-  --f:#888;--e:#aaa;--d:#7ecbe6;--c:#6fd18a;--b:#b97aff;
-  --a:#ff9f4a;--s:#ff6b6b;--ss:#e8c87a;--sss:#fff;
+  --bg:#0a0a0f;--card:rgba(255,255,255,.04);--border:rgba(255,255,255,.08);
+  --gold:#e8c87a;--gold2:#f5e0a0;--dim:rgba(255,255,255,.35);--mid:rgba(255,255,255,.65);
+  --f:#888;--e:#aaa;--d:#7ecbe6;--c:#6fd18a;--b:#b97aff;--a:#ff9f4a;--s:#ff6b6b;--ss:#e8c87a;--sss:#fff;
 }
-html,body{min-height:100vh;background:var(--bg);color:var(--white);font-family:'Noto Serif KR',serif;overflow-x:hidden}
-
-/* 배경 파티클 */
+html,body{min-height:100vh;background:var(--bg);color:#fff;font-family:'Noto Serif KR',serif;overflow-x:hidden}
 .bg-stars{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
 .star{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;animation:twinkle var(--d,3s) var(--del,0s) ease-in-out infinite alternate}
 @keyframes twinkle{0%{opacity:.1;transform:scale(1)}100%{opacity:.6;transform:scale(1.5)}}
 
-/* 탭 네비 */
-.nav{position:relative;z-index:10;display:flex;justify-content:center;gap:0;padding:28px 0 0;border-bottom:1px solid var(--border)}
-.nav-btn{background:none;border:none;color:var(--dim);font-family:inherit;font-size:14px;padding:10px 28px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.5px}
+.nav{position:relative;z-index:10;display:flex;justify-content:center;padding:24px 0 0;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:0}
+.nav-btn{background:none;border:none;color:var(--dim);font-family:inherit;font-size:13px;padding:10px 20px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.5px;white-space:nowrap}
 .nav-btn.on{color:var(--gold);border-color:var(--gold)}
-.nav-btn:hover{color:var(--mid)}
 
-/* 공통 레이아웃 */
-.page{display:none;max-width:640px;margin:0 auto;padding:36px 20px 60px;position:relative;z-index:1}
+.page{display:none;max-width:660px;margin:0 auto;padding:32px 16px 60px;position:relative;z-index:1}
 .page.on{display:block}
-.page-title{font-size:24px;font-weight:900;color:var(--gold);text-align:center;margin-bottom:6px;letter-spacing:1px}
-.page-sub{font-size:13px;color:var(--dim);text-align:center;margin-bottom:32px}
+.page-title{font-size:22px;font-weight:900;color:var(--gold);text-align:center;margin-bottom:4px;letter-spacing:1px}
+.page-sub{font-size:12px;color:var(--dim);text-align:center;margin-bottom:28px}
 
-/* 입력 컴포넌트 */
-.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px}
-.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
 .label{font-size:11px;letter-spacing:1px;color:var(--dim);text-transform:uppercase;font-family:'DM Mono',monospace}
-.inp{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:#fff;font-family:'Noto Serif KR',serif;font-size:14px;outline:none;transition:border-color .2s;width:100%}
-.inp:focus{border-color:rgba(232,200,122,.4)}
-.inp::placeholder{color:var(--dim)}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.btn{border:none;border-radius:10px;padding:12px 20px;font-family:inherit;font-size:14px;cursor:pointer;font-weight:700;letter-spacing:.5px;transition:all .2s}
+.inp{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:10px;padding:10px 13px;color:#fff;font-family:'Noto Serif KR',serif;font-size:13px;outline:none;transition:border-color .2s;width:100%}
+.inp:focus{border-color:rgba(232,200,122,.4)}.inp::placeholder{color:var(--dim)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.btn{border:none;border-radius:10px;padding:10px 18px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:700;letter-spacing:.3px;transition:all .2s}
 .btn-gold{background:var(--gold);color:#0a0a0f}.btn-gold:hover{background:var(--gold2)}
 .btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--mid)}.btn-ghost:hover{border-color:rgba(232,200,122,.3);color:var(--gold)}
 .btn-danger{background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.25);color:#ff6b6b}
-.btn-full{width:100%;margin-top:8px}
+.btn-full{width:100%;margin-top:6px}
+.toggle-row{display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 0}
+.toggle-row input[type=checkbox]{width:17px;height:17px;accent-color:var(--gold)}
+.toggle-row span{font-size:13px;color:var(--mid)}
+.toggle-row small{font-size:10px;color:var(--dim)}
+
+/* 프리셋 버튼 */
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.preset-btn{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--mid);cursor:pointer;font-family:inherit;transition:all .18s}
+.preset-btn:hover{border-color:rgba(232,200,122,.35);color:var(--gold)}
+.preset-btn.on{background:rgba(232,200,122,.12);border-color:var(--gold);color:var(--gold)}
 
 /* 상품 행 */
-.items-wrap{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-.item-row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
-.grade-badge{font-family:'DM Mono',monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;background:rgba(255,255,255,.08)}
-.del-item{background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.2);color:#ff6b6b;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px}
+.items-wrap{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.item-row{display:grid;grid-template-columns:auto 1fr auto auto;gap:6px;align-items:center}
+.grade-badge{font-family:'DM Mono',monospace;font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;white-space:nowrap;background:rgba(255,255,255,.07);min-width:56px;text-align:center}
+.del-item{background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.2);color:#ff6b6b;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:12px;white-space:nowrap}
+.add-sub-btn{background:rgba(232,200,122,.1);border:1px solid rgba(232,200,122,.25);color:var(--gold);border-radius:7px;padding:5px 8px;cursor:pointer;font-size:11px;white-space:nowrap}
+.sub-items{padding:4px 0 4px 62px;display:flex;flex-direction:column;gap:4px}
+.sub-item-row{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
+
+/* 애니메이션 선택 */
+.anim-select{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.anim-btn{background:rgba(255,255,255,.05);border:2px solid var(--border);border-radius:12px;padding:12px 8px;cursor:pointer;text-align:center;transition:all .2s;font-family:inherit}
+.anim-btn .anim-icon{font-size:28px;margin-bottom:5px}
+.anim-btn .anim-label{font-size:11px;color:var(--dim)}
+.anim-btn.on{border-color:var(--gold);background:rgba(232,200,122,.08)}
+.anim-btn.on .anim-label{color:var(--gold)}
 
 /* 박스 목록 */
-.box-list{display:flex;flex-direction:column;gap:10px;margin-top:20px}
-.box-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
-.box-card-title{font-size:15px;font-weight:700;margin-bottom:4px;color:var(--gold)}
-.box-card-meta{font-size:12px;color:var(--dim);font-family:'DM Mono',monospace;display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
-.box-card-actions{display:flex;gap:8px}
-.copy-input{font-family:'DM Mono',monospace;font-size:11px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--mid);width:100%;margin-top:8px;cursor:text}
+.box-list{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.box-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 17px}
+.box-card.inactive{opacity:.5}
+.box-card-title{font-size:14px;font-weight:700;margin-bottom:3px;color:var(--gold);display:flex;align-items:center;gap:8px}
+.box-card-meta{font-size:11px;color:var(--dim);font-family:'DM Mono',monospace;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.box-card-actions{display:flex;gap:6px;flex-wrap:wrap}
+.copy-input{font-family:'DM Mono',monospace;font-size:11px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;padding:5px 9px;color:var(--mid);width:100%;margin-top:7px;cursor:text}
 
-/* 코드 입력 (수령자) */
-.code-wrap{text-align:center;margin-bottom:32px}
-.code-inp-big{background:rgba(255,255,255,.06);border:2px solid var(--border);border-radius:14px;padding:16px 20px;color:#fff;font-family:'DM Mono',monospace;font-size:18px;text-align:center;outline:none;width:100%;letter-spacing:4px;transition:border-color .2s;margin-bottom:12px}
+/* 통계 */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+.stat-val{font-size:22px;font-weight:900;color:var(--gold)}
+.stat-label{font-size:11px;color:var(--dim);margin-top:3px}
+.open-log{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto}
+.log-row{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:10px 13px;display:flex;align-items:center;gap:10px}
+.log-grade{font-family:'DM Mono',monospace;font-size:11px;font-weight:700;min-width:32px}
+.log-info{flex:1;min-width:0}
+.log-item{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-meta{font-size:10px;color:var(--dim);font-family:'DM Mono',monospace}
+
+/* 코드 입력 */
+.code-wrap{text-align:center;margin-bottom:28px}
+.code-inp-big{background:rgba(255,255,255,.06);border:2px solid var(--border);border-radius:13px;padding:14px 18px;color:#fff;font-family:'DM Mono',monospace;font-size:16px;text-align:center;outline:none;width:100%;letter-spacing:3px;transition:border-color .2s;margin-bottom:10px}
 .code-inp-big:focus{border-color:rgba(232,200,122,.5)}
 
-/* 보관함 박스들 */
-.vault{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;margin-top:20px}
-.vault-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 12px;text-align:center;cursor:pointer;transition:all .25s;position:relative;overflow:hidden}
+/* 보관함 */
+.vault{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-top:16px}
+.vault-box{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:16px 10px;text-align:center;cursor:pointer;transition:all .25s;position:relative;overflow:hidden}
 .vault-box:hover{border-color:rgba(232,200,122,.35);transform:translateY(-3px)}
-.vault-box .box-icon{font-size:36px;margin-bottom:8px;display:block}
-.vault-box .box-name{font-size:12px;color:var(--mid);font-weight:700;margin-bottom:4px}
-.vault-box .box-expires{font-size:10px;color:var(--dim);font-family:'DM Mono',monospace}
-.vault-box.opened{pointer-events:none}
+.vault-box .box-icon{font-size:32px;margin-bottom:6px;display:block}
+.vault-box .box-name{font-size:11px;color:var(--mid);font-weight:700;margin-bottom:3px}
+.vault-box.opened{cursor:default}
+.vault-box.opened:hover{transform:none;border-color:var(--border)}
 
-/* ══ 개봉 오버레이 ══ */
+/* 개봉 오버레이 */
 .open-overlay{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.92);backdrop-filter:blur(12px)}
 .open-overlay.show{display:flex}
 .open-stage{position:relative;width:320px;text-align:center}
-
-/* 박스 */
-.box-3d{width:160px;height:160px;margin:0 auto 24px;position:relative;cursor:pointer}
-.box-body{position:absolute;bottom:0;width:100%;height:120px;background:linear-gradient(135deg,#c8661a,#e07820);border-radius:12px 12px 8px 8px;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 8px 32px rgba(200,102,26,.4)}
-.box-lid{position:absolute;top:0;width:100%;height:50px;background:linear-gradient(135deg,#d97020,#f08830);border-radius:10px;transform-origin:bottom center;transition:transform .6s cubic-bezier(.34,1.56,.64,1);box-shadow:0 -4px 16px rgba(200,102,26,.3)}
-.box-bow{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:24px;transition:transform .4s ease,opacity .4s}
-
-/* 흔들기 */
-@keyframes shake{
-  0%,100%{transform:rotate(0deg) translateY(0)}
-  15%{transform:rotate(-8deg) translateY(-4px)}
-  30%{transform:rotate(8deg) translateY(-6px)}
-  45%{transform:rotate(-6deg) translateY(-4px)}
-  60%{transform:rotate(6deg) translateY(-8px)}
-  75%{transform:rotate(-4deg) translateY(-4px)}
-  90%{transform:rotate(4deg) translateY(-2px)}
-}
-.box-3d.shaking{animation:shake .7s ease-in-out 3}
-
-/* 조명 이펙트 */
-.spotlight{position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:200px;height:200px;background:radial-gradient(ellipse,rgba(232,200,122,.0) 0%,transparent 70%);border-radius:50%;transition:all .5s;pointer-events:none}
+.spotlight{position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:220px;height:220px;background:radial-gradient(ellipse,rgba(232,200,122,.0) 0%,transparent 70%);border-radius:50%;transition:all .5s;pointer-events:none}
 .spotlight.on{background:radial-gradient(ellipse,rgba(232,200,122,.35) 0%,transparent 70%)}
-
-/* 결과 카드 */
-.result-card{display:none;animation:resultIn .6s cubic-bezier(.34,1.56,.64,1) both}
-@keyframes resultIn{0%{opacity:0;transform:scale(.5) translateY(40px)}100%{opacity:1;transform:scale(1) translateY(0)}}
-.result-grade{font-family:'DM Mono',monospace;font-size:48px;font-weight:700;margin-bottom:8px;text-shadow:0 0 40px currentColor}
-.result-item{font-size:20px;font-weight:700;margin-bottom:6px}
-.result-label{font-size:13px;color:var(--dim);margin-bottom:24px;font-family:'DM Mono',monospace}
-
-/* 파티클 */
-.particles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.particle{position:absolute;width:6px;height:6px;border-radius:50%;animation:particleUp 1s ease-out both}
-@keyframes particleUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-120px) scale(0)}}
-
-/* 등급별 조명 */
 .grade-F .spotlight.on{background:radial-gradient(ellipse,rgba(136,136,136,.2) 0%,transparent 70%)}
 .grade-E .spotlight.on{background:radial-gradient(ellipse,rgba(170,170,170,.2) 0%,transparent 70%)}
 .grade-D .spotlight.on{background:radial-gradient(ellipse,rgba(126,203,230,.3) 0%,transparent 70%)}
@@ -132,421 +118,591 @@ html,body{min-height:100vh;background:var(--bg);color:var(--white);font-family:'
 .grade-SSS .spotlight.on{background:radial-gradient(ellipse,rgba(255,255,255,.8) 0%,transparent 65%);animation:sssFlicker 1s ease-in-out infinite alternate}
 @keyframes sssFlicker{0%{opacity:.8}100%{opacity:1}}
 
-/* 상태 메시지 */
-.status{font-size:13px;text-align:center;padding:10px;border-radius:8px;margin-top:12px}
+/* 상자 애니메이션 */
+.box-3d{width:160px;height:160px;margin:0 auto 20px;position:relative;cursor:pointer}
+.box-body{position:absolute;bottom:0;width:100%;height:120px;background:linear-gradient(135deg,#c8661a,#e07820);border-radius:12px 12px 8px 8px;display:flex;align-items:center;justify-content:center;font-size:38px;box-shadow:0 8px 32px rgba(200,102,26,.4)}
+.box-lid{position:absolute;top:0;width:100%;height:50px;background:linear-gradient(135deg,#d97020,#f08830);border-radius:10px;transform-origin:bottom center;transition:transform .6s cubic-bezier(.34,1.56,.64,1);box-shadow:0 -4px 16px rgba(200,102,26,.3)}
+.box-bow{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:22px;transition:transform .4s ease,opacity .4s}
+@keyframes shake{0%,100%{transform:rotate(0deg) translateY(0)}15%{transform:rotate(-8deg) translateY(-4px)}30%{transform:rotate(8deg) translateY(-6px)}45%{transform:rotate(-6deg) translateY(-4px)}60%{transform:rotate(6deg) translateY(-8px)}75%{transform:rotate(-4deg) translateY(-4px)}90%{transform:rotate(4deg) translateY(-2px)}}
+.box-3d.shaking{animation:shake .7s ease-in-out 3}
+
+/* 룰렛 애니메이션 */
+.roulette-wrap{width:220px;height:220px;margin:0 auto 20px;position:relative;cursor:pointer}
+.roulette-disk{width:100%;height:100%;border-radius:50%;position:relative;overflow:hidden;border:3px solid var(--gold);box-shadow:0 0 30px rgba(232,200,122,.3)}
+.roulette-needle{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:24px;z-index:2;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+@keyframes rouletteSpin{0%{transform:rotate(0deg)}100%{transform:rotate(1800deg)}}
+.roulette-disk.spinning{animation:rouletteSpin 3s cubic-bezier(.17,.67,.12,1) both}
+
+/* 캡슐 애니메이션 */
+.capsule-wrap{width:140px;height:200px;margin:0 auto 20px;position:relative;cursor:pointer}
+.capsule-body{width:100%;height:60%;background:linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.05));border-radius:0 0 70px 70px;border:2px solid rgba(255,255,255,.2);position:absolute;bottom:0}
+.capsule-top{width:100%;height:55%;background:linear-gradient(180deg,#e07820,#c8661a);border-radius:70px 70px 0 0;position:absolute;top:0;transition:transform .8s cubic-bezier(.34,1.56,.64,1)}
+.capsule-wrap.shaking{animation:shake .7s ease-in-out 3}
+.capsule-top.opened{transform:translateY(-60px) rotate(-15deg)}
+
+/* 결과 카드 */
+.result-card{display:none;animation:resultIn .6s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes resultIn{0%{opacity:0;transform:scale(.5) translateY(40px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.result-grade{font-family:'DM Mono',monospace;font-size:52px;font-weight:700;margin-bottom:6px;text-shadow:0 0 40px currentColor}
+.result-item{font-size:18px;font-weight:700;margin-bottom:4px}
+.result-label{font-size:12px;color:var(--dim);margin-bottom:20px;font-family:'DM Mono',monospace}
+
+/* 파티클 */
+.particles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.particle{position:absolute;width:6px;height:6px;border-radius:50%;animation:particleUp 1s ease-out both}
+@keyframes particleUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-120px) scale(0)}}
+
+/* SSS */
+.sss-burst{position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(255,255,255,.15) 0%,rgba(0,0,0,.97) 70%)}
+.sss-burst.show{display:flex;animation:sssBg 1.5s ease-out}
+@keyframes sssBg{0%{background:radial-gradient(ellipse at center,rgba(255,255,255,.8) 0%,rgba(0,0,0,.5) 70%)}100%{background:radial-gradient(ellipse at center,rgba(255,255,255,.15) 0%,rgba(0,0,0,.97) 70%)}}
+.sss-text{font-size:72px;font-weight:900;color:#fff;text-shadow:0 0 60px #fff,0 0 120px rgba(232,200,122,.8);animation:sssText 1s ease-out both;text-align:center}
+@keyframes sssText{0%{opacity:0;transform:scale(3)}50%{opacity:1;transform:scale(.9)}100%{opacity:1;transform:scale(1)}}
+
+/* 상품목록 모달 */
+.modal-overlay{position:fixed;inset:0;z-index:1500;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8);backdrop-filter:blur(8px)}
+.modal-overlay.show{display:flex}
+.modal-box{background:#14141f;border:1px solid var(--border);border-radius:18px;padding:24px;max-width:340px;width:90%;position:relative;max-height:80vh;overflow-y:auto}
+.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer}
+
+.status{font-size:12px;text-align:center;padding:8px;border-radius:8px;margin-top:10px}
 .status.err{background:rgba(255,80,80,.1);color:#ff6b6b;border:1px solid rgba(255,80,80,.2)}
 .status.ok{background:rgba(100,200,100,.1);color:#6fd18a;border:1px solid rgba(100,200,100,.2)}
 .status.loading{color:var(--dim)}
-
-.empty{text-align:center;color:var(--dim);font-size:13px;padding:32px;font-style:italic}
+.empty{text-align:center;color:var(--dim);font-size:12px;padding:28px;font-style:italic}
 @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .anim-up{animation:up .3s ease both}
 
-/* SSS 전체화면 */
-.sss-burst{position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(255,255,255,.15) 0%,rgba(0,0,0,.97) 70%);animation:sssBg 1.5s ease-out}
-.sss-burst.show{display:flex}
-@keyframes sssBg{0%{background:radial-gradient(ellipse at center,rgba(255,255,255,.8) 0%,rgba(0,0,0,.5) 70%)}100%{background:radial-gradient(ellipse at center,rgba(255,255,255,.15) 0%,rgba(0,0,0,.97) 70%)}}
-.sss-text{font-size:80px;font-weight:900;color:#fff;text-shadow:0 0 60px #fff,0 0 120px rgba(232,200,122,.8);animation:sssText 1s ease-out both;text-align:center}
-@keyframes sssText{0%{opacity:0;transform:scale(3)}50%{opacity:1;transform:scale(0.9)}100%{opacity:1;transform:scale(1)}}
+/* 결과 저장 버튼 */
+#resultSaveBtn{background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--mid);border-radius:10px;padding:10px 18px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:700;transition:all .2s}
+#resultSaveBtn:hover{border-color:var(--gold);color:var(--gold)}
 </style>
 </head>
 <body>
-
-<!-- 배경 별 -->
 <div class="bg-stars" id="bgStars"></div>
 
-<!-- 내비 -->
 <div class="nav">
   <button class="nav-btn on" onclick="switchTab('admin')">🎁 박스 관리</button>
+  <button class="nav-btn" onclick="switchTab('stats')">📊 통계</button>
   <button class="nav-btn" onclick="switchTab('user')">📬 박스 수령</button>
 </div>
 
 <!-- ═══ 관리자 탭 ═══ -->
 <div class="page on" id="tab-admin">
   <div class="page-title">박스 만들기</div>
-  <div class="page-sub">상품을 입력하면 등급이 자동으로 배정됩니다</div>
+  <div class="page-sub">프리셋을 선택하거나 직접 상품을 입력하세요</div>
 
-  <div class="card" style="margin-bottom:16px">
-    <div class="field">
-      <div class="label">박스 이름</div>
-      <input class="inp" id="admin-name" placeholder="예: 다이겨 감사 박스">
+  <div class="card" style="margin-bottom:14px">
+    <!-- 프리셋 -->
+    <div class="label" style="margin-bottom:8px">프리셋 템플릿</div>
+    <div class="presets">
+      <button class="preset-btn" onclick="applyPreset('coffee')">☕ 커피쿠폰</button>
+      <button class="preset-btn" onclick="applyPreset('shopping')">🛍 쇼핑쿠폰</button>
+      <button class="preset-btn" onclick="applyPreset('gift')">🎁 감사선물</button>
+      <button class="preset-btn" onclick="applyPreset('game')">🎮 게임아이템</button>
+      <button class="preset-btn" onclick="applyPreset('clear')">✏️ 직접입력</button>
     </div>
+
+    <!-- 기본 정보 -->
+    <div class="field"><div class="label">박스 이름</div><input class="inp" id="admin-name" placeholder="예: 다이겨 감사 박스"></div>
     <div class="row2">
-      <div class="field">
-        <div class="label">유효기간</div>
-        <input class="inp" id="admin-expires" type="date">
-      </div>
-      <div class="field">
-        <div class="label">발급 수량 (0=무제한)</div>
-        <input class="inp" id="admin-limit" type="number" value="1" min="0">
-      </div>
-      <div class="field" style="grid-column:1/-1">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-          <input type="checkbox" id="admin-show-items" style="width:18px;height:18px;accent-color:var(--gold)">
-          <span style="font-size:13px;color:var(--mid)">수령자에게 상품 목록 공개 <span style="color:var(--dim);font-size:11px">(열기 전 목록 확인 가능)</span></span>
-        </label>
-      </div>
+      <div class="field"><div class="label">유효기간</div><input class="inp" id="admin-expires" type="date"></div>
+      <div class="field"><div class="label">발급 수량 (0=무제한)</div><input class="inp" id="admin-limit" type="number" value="1" min="0"></div>
     </div>
 
-    <div class="label" style="margin-bottom:8px">상품 목록</div>
-    <div class="items-wrap" id="adminItems"></div>
-    <button class="btn btn-ghost" onclick="addAdminItem()" style="font-size:13px;padding:8px 14px;margin-bottom:16px">+ 상품 추가</button>
+    <!-- 옵션 토글 -->
+    <label class="toggle-row"><input type="checkbox" id="admin-show-items"><span>수령자에게 상품 목록 공개 <small>(열기 전 확인 가능)</small></span></label>
+    <label class="toggle-row"><input type="checkbox" id="admin-allow-blank"><span>꽝 포함 <small>(배정 안 된 등급 당첨 시 꽝)</small></span></label>
 
-    <div id="admin-status" class="status loading" style="display:none"></div>
+    <!-- 개봉 애니메이션 선택 -->
+    <div class="label" style="margin-bottom:8px;margin-top:4px">개봉 애니메이션</div>
+    <div class="anim-select">
+      <div class="anim-btn on" onclick="selectAnim('box',this)"><div class="anim-icon">📦</div><div class="anim-label">상자형</div></div>
+      <div class="anim-btn" onclick="selectAnim('roulette',this)"><div class="anim-icon">🎡</div><div class="anim-label">룰렛형</div></div>
+      <div class="anim-btn" onclick="selectAnim('capsule',this)"><div class="anim-icon">💊</div><div class="anim-label">캡슐형</div></div>
+    </div>
+
+    <!-- 상품 목록 -->
+    <div class="label" style="margin-bottom:8px">상품 목록 <span style="color:var(--dim);font-size:10px">(+버튼으로 동일 등급에 여러 상품 추가 가능)</span></div>
+    <div class="items-wrap" id="adminItems"></div>
+    <button class="btn btn-ghost" onclick="addAdminItem()" style="font-size:12px;padding:7px 13px;margin-bottom:14px">+ 등급 추가</button>
+
+    <div id="admin-status" class="status" style="display:none"></div>
     <button class="btn btn-gold btn-full" onclick="createBox()">🎁 박스 생성하기</button>
   </div>
 
-  <!-- 생성된 박스 목록 -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-    <div style="font-size:14px;color:var(--mid);font-weight:700">생성된 박스</div>
-    <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="loadAdminBoxes()">↻ 새로고침</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="font-size:13px;color:var(--mid);font-weight:700">생성된 박스</div>
+    <button class="btn btn-ghost" style="font-size:11px;padding:5px 11px" onclick="loadAdminBoxes()">↻ 새로고침</button>
   </div>
   <div class="box-list" id="adminBoxList"><div class="empty">로딩 중...</div></div>
+</div>
+
+<!-- ═══ 통계 탭 ═══ -->
+<div class="page" id="tab-stats">
+  <div class="page-title">개봉 통계</div>
+  <div class="page-sub">박스별 개봉 이력 및 당첨 현황</div>
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <select class="inp" id="stats-box-select" style="flex:1" onchange="loadStats()"><option value="">전체 박스</option></select>
+    <button class="btn btn-ghost" style="white-space:nowrap" onclick="loadStats()">↻ 새로고침</button>
+  </div>
+  <div class="stat-grid" id="statCards"><div class="stat-card"><div class="stat-val">-</div><div class="stat-label">총 개봉</div></div><div class="stat-card"><div class="stat-val">-</div><div class="stat-label">SSS 당첨</div></div><div class="stat-card"><div class="stat-val">-</div><div class="stat-label">S 이상</div></div></div>
+  <div class="label" style="margin-bottom:8px">개봉 이력</div>
+  <div class="open-log" id="openLog"><div class="empty">로딩 중...</div></div>
 </div>
 
 <!-- ═══ 수령자 탭 ═══ -->
 <div class="page" id="tab-user">
   <div class="page-title">박스 수령하기</div>
   <div class="page-sub">받은 코드를 입력하거나 링크로 접속하세요</div>
-
   <div class="code-wrap">
-    <input class="code-inp-big" id="user-code" placeholder="박스 코드 입력" maxlength="36"
-      onkeydown="if(event.key==='Enter')claimBox()">
-    <input class="inp" id="user-name" placeholder="수령인 이름 (예: 홍길동)" style="margin-bottom:10px;text-align:center;font-size:15px">
-    <button class="btn btn-gold" style="width:100%;padding:13px" onclick="claimBox()">📬 박스 수령</button>
+    <input class="code-inp-big" id="user-code" placeholder="박스 코드 입력" maxlength="36" onkeydown="if(event.key==='Enter')claimBox()">
+    <input class="inp" id="user-name" placeholder="수령인 이름" style="margin-bottom:10px;text-align:center">
+    <button class="btn btn-gold" style="width:100%;padding:12px" onclick="claimBox()">📬 박스 수령</button>
     <div id="claim-status" class="status" style="display:none"></div>
   </div>
-
-  <div style="font-size:14px;color:var(--mid);font-weight:700;margin-bottom:12px">보관함</div>
-  <div class="vault" id="userVault">
-    <div class="empty" style="grid-column:1/-1">수령한 박스가 없습니다</div>
-  </div>
+  <div style="font-size:13px;color:var(--mid);font-weight:700;margin-bottom:10px">보관함</div>
+  <div class="vault" id="userVault"><div class="empty" style="grid-column:1/-1">수령한 박스가 없습니다</div></div>
 </div>
 
-<!-- ═══ 개봉 오버레이 ═══ -->
+<!-- 개봉 오버레이 -->
 <div class="open-overlay" id="openOverlay">
   <div class="open-stage" id="openStage">
     <div class="spotlight" id="spotlight"></div>
     <div class="particles" id="particles"></div>
-
-    <!-- 박스 -->
-    <div class="box-3d" id="box3d" onclick="startOpen()">
+    <!-- 상자형 -->
+    <div class="box-3d" id="anim-box" onclick="startOpen()">
       <div class="box-bow" id="boxBow">🎀</div>
       <div class="box-lid" id="boxLid"></div>
       <div class="box-body" id="boxBody">🎁</div>
     </div>
-
-    <div id="open-hint" style="font-size:14px;color:var(--dim);margin-bottom:16px">탭해서 열어보세요</div>
-
-    <!-- 결과 -->
+    <!-- 룰렛형 -->
+    <div class="roulette-wrap" id="anim-roulette" style="display:none" onclick="startOpen()">
+      <div class="roulette-needle">▼</div>
+      <div class="roulette-disk" id="rouletteDisk"></div>
+    </div>
+    <!-- 캡슐형 -->
+    <div class="capsule-wrap" id="anim-capsule" style="display:none" onclick="startOpen()">
+      <div class="capsule-top" id="capsuleTop"></div>
+      <div class="capsule-body"></div>
+    </div>
+    <div id="open-hint" style="font-size:13px;color:var(--dim);margin-bottom:14px">탭해서 열어보세요</div>
     <div class="result-card" id="resultCard">
       <div class="result-grade" id="resultGrade"></div>
       <div class="result-item" id="resultItem"></div>
       <div class="result-label" id="resultLabel"></div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button id="resultSaveBtn" onclick="saveResultImg()">💾 이미지 저장</button>
         <button class="btn btn-ghost" onclick="closeOverlay()">닫기</button>
       </div>
     </div>
-
-
   </div>
 </div>
-
 
 <!-- 상품 목록 모달 -->
-<div class="open-overlay" id="itemsModal" style="align-items:center">
-  <div style="background:#14141f;border:1px solid var(--border);border-radius:20px;padding:28px 24px;max-width:340px;width:90%;position:relative">
-    <button onclick="document.getElementById('itemsModal').classList.remove('show')"
-      style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer">✕</button>
-    <div style="font-size:16px;font-weight:700;color:var(--gold);margin-bottom:4px" id="itemsModalTitle">🎁 박스</div>
-    <div style="font-size:12px;color:var(--dim);margin-bottom:16px">이 박스에 담긴 상품 목록</div>
-    <div id="itemsModalList" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div>
-    <button class="btn btn-gold" style="width:100%;margin-top:18px" id="itemsModalOpenBtn">🎁 지금 열기</button>
+<div class="modal-overlay" id="itemsModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('itemsModal').classList.remove('show')">✕</button>
+    <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:3px" id="itemsModalTitle">🎁 박스</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">이 박스에 담긴 상품 목록</div>
+    <div id="itemsModalList" style="display:flex;flex-direction:column;gap:7px;max-height:280px;overflow-y:auto"></div>
+    <button class="btn btn-gold" style="width:100%;margin-top:16px" id="itemsModalOpenBtn">🎁 지금 열기</button>
   </div>
 </div>
+
 <!-- SSS 이펙트 -->
 <div class="sss-burst" id="sssBurst">
   <div>
     <div class="sss-text">✨ SSS ✨</div>
-    <div style="font-size:18px;color:var(--gold);margin-top:16px;text-align:center" id="sssItemText"></div>
+    <div style="font-size:16px;color:var(--gold);margin-top:14px;text-align:center" id="sssItemText"></div>
   </div>
 </div>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbzIAkczdJvxofOCdWmc_m9xiemfJnflQRZvvLZ1ll6EC2tY-gfg4rIG5tRoTAzJVfwstg/exec';
+const API = 'https://script.google.com/macros/s/AKfycbzNo4HTr3X6Zb1wH_7JxYac0at0s6O9uXkA5gNDnruKR4kreP4rCZMYhVcLsEczZtt_HA/exec';
 
-// 등급 정의
 const GRADES = [
-  {grade:'SSS', pct:0.0001, color:'#fff'},
-  {grade:'SS',  pct:0.001,  color:'#e8c87a'},
-  {grade:'S',   pct:0.1,    color:'#ff6b6b'},
-  {grade:'A',   pct:1,      color:'#ff9f4a'},
-  {grade:'B',   pct:5,      color:'#b97aff'},
-  {grade:'C',   pct:15,     color:'#6fd18a'},
-  {grade:'D',   pct:25,     color:'#7ecbe6'},
-  {grade:'E',   pct:30,     color:'#aaa'},
-  {grade:'F',   pct:23.8989, color:'#888'},
+  {grade:'SSS',pct:0.0001,color:'#fff'},
+  {grade:'SS', pct:0.001, color:'#e8c87a'},
+  {grade:'S',  pct:0.1,   color:'#ff6b6b'},
+  {grade:'A',  pct:1,     color:'#ff9f4a'},
+  {grade:'B',  pct:5,     color:'#b97aff'},
+  {grade:'C',  pct:15,    color:'#6fd18a'},
+  {grade:'D',  pct:25,    color:'#7ecbe6'},
+  {grade:'E',  pct:30,    color:'#aaa'},
+  {grade:'F',  pct:23.8989,color:'#888'},
 ];
 
-// 상품 수에 따른 등급 자동배정
+const PRESETS = {
+  coffee:[
+    {grade:'SSS',items:['자유롭게 음료 한 잔']},
+    {grade:'SS', items:['스무디급 음료 한 잔']},
+    {grade:'S',  items:['라떼급 음료 한 잔']},
+    {grade:'A',  items:['아메리카노 + 사이즈업']},
+    {grade:'B',  items:['아메리카노']},
+  ],
+  shopping:[
+    {grade:'SSS',items:['5만원 쿠폰']},
+    {grade:'SS', items:['3만원 쿠폰']},
+    {grade:'S',  items:['1만원 쿠폰']},
+    {grade:'A',  items:['5천원 쿠폰']},
+    {grade:'B',  items:['무료 배송 쿠폰']},
+  ],
+  gift:[
+    {grade:'SSS',items:['고급 선물세트']},
+    {grade:'SS', items:['케이크']},
+    {grade:'S',  items:['과일 바구니']},
+    {grade:'A',  items:['음료 세트']},
+    {grade:'B',  items:['간식 세트']},
+  ],
+  game:[
+    {grade:'SSS',items:['전설급 아이템']},
+    {grade:'SS', items:['영웅급 아이템']},
+    {grade:'S',  items:['희귀급 아이템']},
+    {grade:'A',  items:['고급 아이템']},
+    {grade:'B',  items:['일반 아이템']},
+  ],
+};
 
-function copyBoxLink(uuid){
-  const shareUrl = location.href.split('?')[0]+'?box='+uuid;
-  if(navigator.clipboard&&location.protocol==='https:'){
-    navigator.clipboard.writeText(shareUrl).then(()=>alert('링크 복사됨!\n'+shareUrl)).catch(fallback);
-  } else {
-    fallback();
+const GRADE_ORDER = ['SSS','SS','S','A','B','C','D','E','F'];
+
+// ── 유틸
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+async function apiFetch(url, opts){
+  const proxies=[`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
+  for(const pu of proxies){
+    try{const r=await fetch(pu,opts);if(r.ok)return r;}catch(_){}
   }
-  function fallback(){
-    const t=document.createElement('textarea');
-    t.value=shareUrl;t.style.position='fixed';t.style.opacity='0';
-    document.body.appendChild(t);t.select();
-    document.execCommand('copy');
-    document.body.removeChild(t);
-    alert('링크 복사됨!\n'+shareUrl);
-  }
+  throw new Error('네트워크 오류');
 }
-function assignGrades(count) {
-  if(count === 0) return [];
-  const gradeOrder = ['SSS','SS','S','A','B','C','D','E','F'];
-  const result = [];
-  for(let i=0;i<count;i++) result.push(gradeOrder[Math.min(i, gradeOrder.length-1)]);
-  return result;
+async function apiPost(body){
+  return apiFetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
+}
+async function apiGet(params){
+  return apiFetch(API+'?'+new URLSearchParams(params).toString());
 }
 
-// 배경 별 생성
-function initStars(){
+// 별 배경
+(function(){
   const c=document.getElementById('bgStars');
   for(let i=0;i<80;i++){
-    const s=document.createElement('div');
-    s.className='star';
+    const s=document.createElement('div');s.className='star';
     s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--del:${Math.random()*4}s;opacity:${Math.random()*.4}`;
     c.appendChild(s);
   }
-}
-initStars();
+})();
 
 // 탭 전환
 function switchTab(name){
-  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('on',['admin','user'][i]===name));
-  document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('on',['tab-admin','tab-user'][i]==='tab-'+name));
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('on',['admin','stats','user'][i]===name));
+  document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('on',['tab-admin','tab-stats','tab-user'][i]==='tab-'+name));
   if(name==='admin') loadAdminBoxes();
+  if(name==='stats') loadStats();
   if(name==='user') renderVault();
 }
 
 // ══ 관리자 ══
-let adminItems = [];
+let adminItems = []; // [{id, grade, items:[str]}]
 let adminRowCount = 0;
+let selectedAnim = 'box';
 
-function addAdminItem(){
-  const id = adminRowCount++;
-  adminItems.push({id, text:''});
+function selectAnim(type, el){
+  selectedAnim = type;
+  document.querySelectorAll('.anim-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+
+function applyPreset(key){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('on'));
+  event.target.classList.add('on');
+  adminItems=[]; adminRowCount=0;
+  if(key==='clear'){renderAdminItems();return;}
+  const p=PRESETS[key]||[];
+  p.forEach(row=>{adminItems.push({id:adminRowCount++,grade:row.grade,items:[...row.items]});});
   renderAdminItems();
 }
 
-function removeAdminItem(id){
-  adminItems = adminItems.filter(i=>i.id!==id);
+function addAdminItem(){
+  const usedGrades=adminItems.map(i=>i.grade);
+  const next=GRADE_ORDER.find(g=>!usedGrades.includes(g))||'F';
+  adminItems.push({id:adminRowCount++,grade:next,items:['']});
   renderAdminItems();
+}
+
+function removeAdminGrade(id){
+  adminItems=adminItems.filter(i=>i.id!==id);
+  renderAdminItems();
+}
+
+function addSubItem(id){
+  const row=adminItems.find(i=>i.id===id);
+  if(row) row.items.push('');
+  renderAdminItems();
+}
+
+function removeSubItem(id,idx){
+  const row=adminItems.find(i=>i.id===id);
+  if(row&&row.items.length>1) row.items.splice(idx,1);
+  renderAdminItems();
+}
+
+function calcDisplayPct(allowBlank){
+  // allowBlank=false → 배정된 등급만 확률 재분배
+  const assignedGrades=adminItems.map(i=>i.grade);
+  if(allowBlank){
+    return Object.fromEntries(GRADES.map(g=>[g.grade,g.pct]));
+  }
+  const assigned=GRADES.filter(g=>assignedGrades.includes(g.grade));
+  const total=assigned.reduce((s,g)=>s+g.pct,0);
+  const map={};
+  assigned.forEach(g=>map[g.grade]=parseFloat((g.pct/total*100).toFixed(4)));
+  return map;
 }
 
 function renderAdminItems(){
-  const grades = assignGrades(adminItems.length);
-  const wrap = document.getElementById('adminItems');
+  const allowBlank=document.getElementById('admin-allow-blank').checked;
+  const pctMap=calcDisplayPct(allowBlank);
+  const wrap=document.getElementById('adminItems');
   if(!adminItems.length){
-    wrap.innerHTML = '<div style="font-size:13px;color:var(--dim);text-align:center;padding:12px 0">상품을 추가해주세요</div>';
+    wrap.innerHTML='<div style="font-size:12px;color:var(--dim);text-align:center;padding:10px 0">등급을 추가해주세요</div>';
     return;
   }
-  wrap.innerHTML = adminItems.map((item,i) => {
-    const g = grades[i];
-    const gInfo = GRADES.find(x=>x.grade===g);
-    const pct = g==='SSS'?'0.0001%':gInfo?gInfo.pct+'%':'';
-    return `<div class="item-row anim-up">
-      <div class="grade-badge" style="color:${gInfo?.color||'#aaa'}">${g} <span style="opacity:.5;font-size:10px">${pct}</span></div>
-      <input class="inp" style="font-size:13px;padding:8px 12px" placeholder="상품명 입력"
-        value="${item.text}" oninput="(function(el,id){const found=adminItems.find(x=>x.id===id);if(found)found.text=el.value;})(this,${item.id})">
-      <button class="del-item" onclick="removeAdminItem(${item.id})">✕</button>
+  wrap.innerHTML=adminItems.map(row=>{
+    const gInfo=GRADES.find(g=>g.grade===row.grade);
+    const pct=pctMap[row.grade]!=null?pctMap[row.grade]+'%':'';
+    const subItems=row.items.map((item,idx)=>`
+      <div class="sub-item-row">
+        <input class="inp" style="font-size:12px;padding:7px 10px" placeholder="상품명"
+          value="${esc(item)}"
+          oninput="(function(el,id,idx){const r=adminItems.find(x=>x.id===id);if(r)r.items[idx]=el.value;})(this,${row.id},${idx})">
+        ${row.items.length>1?`<button class="del-item" style="padding:4px 7px;font-size:11px" onclick="removeSubItem(${row.id},${idx})">✕</button>`:''}
+      </div>`).join('');
+    return `<div class="anim-up">
+      <div class="item-row">
+        <div class="grade-badge" style="color:${gInfo?.color||'#aaa'}">${row.grade}<br><span style="opacity:.5;font-size:9px">${pct}</span></div>
+        <div style="font-size:12px;color:var(--mid)">${row.items.filter(Boolean).join(' / ')||'(상품명 입력)'}</div>
+        <button class="add-sub-btn" onclick="addSubItem(${row.id})">+상품</button>
+        <button class="del-item" onclick="removeAdminGrade(${row.id})">✕</button>
+      </div>
+      <div class="sub-items">${subItems}</div>
     </div>`;
   }).join('');
 }
 
-async function createBox(){
-  const name = document.getElementById('admin-name').value.trim();
-  const expires = document.getElementById('admin-expires').value;
-  const limit = parseInt(document.getElementById('admin-limit').value)||0;
-  const showItems = document.getElementById('admin-show-items').checked;
-  const st = document.getElementById('admin-status');
+// allowBlank 체크 시 확률 재계산
+document.getElementById('admin-allow-blank').addEventListener('change',renderAdminItems);
 
+async function createBox(){
+  const name=document.getElementById('admin-name').value.trim();
+  const expires=document.getElementById('admin-expires').value;
+  const limit=parseInt(document.getElementById('admin-limit').value)||0;
+  const showItems=document.getElementById('admin-show-items').checked;
+  const allowBlank=document.getElementById('admin-allow-blank').checked;
+  const st=document.getElementById('admin-status');
   if(!name){alert('박스 이름을 입력해주세요.');return;}
   if(!adminItems.length){alert('상품을 하나 이상 추가해주세요.');return;}
-
-  const grades = assignGrades(adminItems.length);
-  const items = adminItems.map((item,i)=>({grade:grades[i], name:item.text||'(상품명 없음)'}));
-
-  st.style.display='block'; st.className='status loading'; st.textContent='생성 중...';
-
+  const items=adminItems.map(row=>({grade:row.grade,names:row.items.filter(Boolean).length?row.items.filter(Boolean):['(상품명 없음)']}));
+  st.style.display='block';st.className='status loading';st.textContent='생성 중...';
   try{
-    let res;
-    try{
-      res = await fetch(`https://corsproxy.io/?${encodeURIComponent(API)}`,{
-        method:'POST', headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'create', name, items, expires, limit, showItems})
-      });
-    }catch(e){
-      res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(API)}`,{
-        method:'POST', headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'create', name, items, expires, limit, showItems})
-      });
-    }
-    const data = await res.json();
+    const res=await apiPost({action:'create',name,items,expires,limit,showItems,allowBlank,animType:selectedAnim});
+    const data=await res.json();
     if(data.ok){
-      st.className='status ok'; st.textContent=`✓ 박스 생성 완료! UUID: ${data.uuid}`;
+      st.className='status ok';st.textContent=`✓ 생성 완료! UUID: ${data.uuid}`;
       document.getElementById('admin-name').value='';
-      adminItems=[]; renderAdminItems();
-      loadAdminBoxes();
-    } else {
-      st.className='status err'; st.textContent=data.error||'생성 실패';
-    }
-  }catch(e){
-    st.className='status err'; st.textContent='네트워크 오류. 잠시 후 다시 시도해주세요.';
-  }
+      adminItems=[];renderAdminItems();loadAdminBoxes();
+    }else{st.className='status err';st.textContent=data.error||'생성 실패';}
+  }catch(e){st.className='status err';st.textContent='네트워크 오류';}
+}
+
+function copyBoxLink(uuid){
+  const url=location.href.split('?')[0]+'?box='+uuid;
+  function fallback(){const t=document.createElement('textarea');t.value=url;t.style.cssText='position:fixed;opacity:0';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('링크 복사됨!\n'+url);}
+  if(navigator.clipboard&&location.protocol==='https:'){navigator.clipboard.writeText(url).then(()=>alert('링크 복사됨!\n'+url)).catch(fallback);}
+  else fallback();
+}
+
+async function deactivateBox(uuid){
+  if(!confirm('이 박스를 비활성화하시겠습니까?\n더 이상 열 수 없게 됩니다.'))return;
+  try{
+    const res=await apiPost({action:'deactivate',uuid});
+    const data=await res.json();
+    if(data.ok){alert('비활성화 완료');loadAdminBoxes();}
+    else alert(data.error||'실패');
+  }catch(e){alert('네트워크 오류');}
 }
 
 async function loadAdminBoxes(){
-  const list = document.getElementById('adminBoxList');
+  const list=document.getElementById('adminBoxList');
   list.innerHTML='<div class="empty">불러오는 중...</div>';
   try{
-    const url = `https://corsproxy.io/?${encodeURIComponent(API+'?action=list')}`;
-    const res = await fetch(url);
-    const data = await res.json();
+    const res=await apiGet({action:'list'});
+    const data=await res.json();
     if(!data.ok||!data.boxes?.length){list.innerHTML='<div class="empty">생성된 박스가 없습니다</div>';return;}
-    list.innerHTML = data.boxes.map(box=>{
-      const shareUrl = location.href.split('?')[0]+'?box='+box.uuid;
-      const isExp = box.expires&&new Date(box.expires.split('T')[0]+'T23:59:59')<new Date();
-      return `<div class="box-card anim-up">
-        <div class="box-card-title">${box.name}</div>
+    list.innerHTML=data.boxes.map(box=>{
+      const isExp=box.expires&&new Date(box.expires.split('T')[0]+'T23:59:59')<new Date();
+      const inactive=box.status!=='활성';
+      return `<div class="box-card ${inactive?'inactive':''} anim-up">
+        <div class="box-card-title">${esc(box.name)} ${inactive?'<span style="font-size:10px;color:#ff6b6b">비활성</span>':''}</div>
         <div class="box-card-meta">
-          <span>상품 ${box.items?.length||0}개</span>
-          <span>개봉 ${box.openCount}회${box.limit?'/'+box.limit:''}회</span>
-          ${box.expires?('<span '+(isExp?'style="color:#ff6b6b"':'')+'>~'+box.expires+(isExp?' (만료)':'')+'</span>'):''}
+          <span>상품 ${box.items?.length||0}종</span>
+          <span>개봉 ${box.openCount||0}${box.limit?'/'+box.limit:''}</span>
+          ${box.expires?(isExp?'<span style="color:#ff6b6b">~'+box.expires.split('T')[0]+' (만료)</span>':'<span>~'+box.expires.split('T')[0]+'</span>'):''}
+          <span>${box.animType||'상자'}형</span>
         </div>
-        <input class="copy-input" value="${box.uuid}" readonly onclick="this.select();document.execCommand('copy');this.value='복사됨!';setTimeout(()=>this.value=this.defaultValue,1500)">
+        <input class="copy-input" value="${box.uuid}" readonly onclick="this.select();document.execCommand('copy')">
         <div class="box-card-actions" style="margin-top:8px">
-          <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px"
-            onclick="copyBoxLink('${box.uuid}')">🔗 링크 복사</button>
+          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="copyBoxLink('${box.uuid}')">🔗 링크</button>
+          ${!inactive?`<button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="deactivateBox('${box.uuid}')">🔒 비활성화</button>`:''}
         </div>
       </div>`;
     }).join('');
-  }catch(e){
-    list.innerHTML='<div class="empty">로드 실패. 새로고침해주세요.</div>';
-  }
+  }catch(e){list.innerHTML='<div class="empty">로드 실패</div>';}
+}
+
+// ══ 통계 ══
+async function loadStats(){
+  document.getElementById('openLog').innerHTML='<div class="empty">불러오는 중...</div>';
+  try{
+    const [boxRes,statsRes]=await Promise.all([apiGet({action:'list'}),apiGet({action:'stats'})]);
+    const boxData=await boxRes.json();
+    const statsData=await statsRes.json();
+
+    // 박스 선택박스 채우기
+    const sel=document.getElementById('stats-box-select');
+    const curVal=sel.value;
+    sel.innerHTML='<option value="">전체 박스</option>';
+    (boxData.boxes||[]).forEach(b=>{sel.innerHTML+=`<option value="${b.uuid}">${esc(b.name)}</option>`;});
+    sel.value=curVal;
+
+    const logs=statsData.logs||[];
+    const filtered=sel.value?logs.filter(l=>l.uuid===sel.value):logs;
+
+    // KPI
+    const total=filtered.length;
+    const sssCount=filtered.filter(l=>l.grade==='SSS').length;
+    const highCount=filtered.filter(l=>['SSS','SS','S'].includes(l.grade)).length;
+    document.getElementById('statCards').innerHTML=`
+      <div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">총 개봉</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--sss)">${sssCount}</div><div class="stat-label">SSS 당첨</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--s)">${highCount}</div><div class="stat-label">S 이상</div></div>`;
+
+    // 로그
+    const log=document.getElementById('openLog');
+    if(!filtered.length){log.innerHTML='<div class="empty">개봉 이력이 없습니다</div>';return;}
+    log.innerHTML=[...filtered].reverse().map(l=>{
+      const gInfo=GRADES.find(g=>g.grade===l.grade);
+      return `<div class="log-row">
+        <div class="log-grade" style="color:${gInfo?.color||'#aaa'}">${l.grade}</div>
+        <div class="log-info">
+          <div class="log-item">${esc(l.item)}</div>
+          <div class="log-meta">${l.userName?'👤 '+esc(l.userName)+' · ':''}${l.openedAt||''}</div>
+        </div>
+        <div style="font-size:10px;color:var(--dim)">${esc(l.boxName||'')}</div>
+      </div>`;
+    }).join('');
+  }catch(e){document.getElementById('openLog').innerHTML='<div class="empty">로드 실패</div>';}
 }
 
 // ══ 수령자 ══
-let vault = JSON.parse(localStorage.getItem('mb-vault')||'[]');
+let vault=JSON.parse(localStorage.getItem('mb-vault')||'[]');
 
 async function claimBox(){
-  const code = document.getElementById('user-code').value.trim();
-  const userName = document.getElementById('user-name').value.trim();
-  const st = document.getElementById('claim-status');
+  const code=document.getElementById('user-code').value.trim();
+  const userName=document.getElementById('user-name').value.trim();
+  const st=document.getElementById('claim-status');
   if(!code){alert('코드를 입력해주세요.');return;}
-
-  // 이미 보관함에 있으면
-  if(vault.find(b=>b.uuid===code)){
-    st.style.display='block'; st.className='status err'; st.textContent='이미 보관함에 있는 박스입니다.'; return;
-  }
-
-  st.style.display='block'; st.className='status loading'; st.textContent='박스 확인 중...';
-
+  if(vault.find(b=>b.uuid===code)){st.style.display='block';st.className='status err';st.textContent='이미 보관함에 있는 박스입니다.';return;}
+  st.style.display='block';st.className='status loading';st.textContent='확인 중...';
   try{
-    let res;
-    try{
-      res = await fetch(`https://corsproxy.io/?${encodeURIComponent(API+'?action=get&uuid='+code)}`);
-    }catch(e){
-      res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(API+'?action=get&uuid='+code)}`);
-    }
-    const data = await res.json();
-    if(!data.ok){st.className='status err'; st.textContent=data.error; return;}
-
-    const box = data.box;
-    if(box.isExpired){st.className='status err'; st.textContent='유효기간이 만료된 박스입니다.'; return;}
-    if(box.isExhausted||box.isOpened){st.className='status err'; st.textContent='이미 모두 개봉된 박스입니다.'; return;}
-
-    vault.unshift({uuid:box.uuid, name:box.name, items:box.items, expires:box.expires, opened:false, userName:userName, showItems:box.showItems||false});
-    localStorage.setItem('mb-vault', JSON.stringify(vault));
-    st.className='status ok'; st.textContent='✓ 박스가 보관함에 추가됐습니다!';
+    const res=await apiGet({action:'get',uuid:code});
+    const data=await res.json();
+    if(!data.ok){st.className='status err';st.textContent=data.error;return;}
+    const box=data.box;
+    if(box.isExpired){st.className='status err';st.textContent='유효기간이 만료됐습니다.';return;}
+    if(box.isExhausted||box.isOpened){st.className='status err';st.textContent='이미 모두 개봉된 박스입니다.';return;}
+    vault.unshift({uuid:box.uuid,name:box.name,items:box.items,expires:box.expires,opened:false,userName,showItems:box.showItems||false,allowBlank:box.allowBlank||false,animType:box.animType||'box'});
+    localStorage.setItem('mb-vault',JSON.stringify(vault));
+    st.className='status ok';st.textContent='✓ 보관함에 추가됐습니다!';
     document.getElementById('user-code').value='';
     document.getElementById('user-name').value='';
     renderVault();
-  }catch(e){
-    st.className='status err'; st.textContent='네트워크 오류.';
-  }
+  }catch(e){st.className='status err';st.textContent='네트워크 오류';}
 }
 
 function renderVault(){
-  const vaultEl = document.getElementById('userVault');
-  const active = vault.filter(b=>!b.opened);
-  const opened = vault.filter(b=>b.opened);
-  const all = [...active,...opened];
-  if(!all.length){
-    vaultEl.innerHTML='<div class="empty" style="grid-column:1/-1">수령한 박스가 없습니다</div>'; return;
-  }
-  vaultEl.innerHTML = all.map(box=>`
-    <div class="vault-box ${box.opened?'opened':''}" 
-      ${!box.opened?`onclick="handleVaultClick('${box.uuid}')"`:'style="pointer-events:none;opacity:.8"'}
+  const el=document.getElementById('userVault');
+  if(!vault.length){el.innerHTML='<div class="empty" style="grid-column:1/-1">수령한 박스가 없습니다</div>';return;}
+  el.innerHTML=vault.map(box=>`
+    <div class="vault-box ${box.opened?'opened':''}"
+      ${!box.opened?`onclick="handleVaultClick('${box.uuid}')"`:''}
     >
       <span class="box-icon">${box.opened?'📭':'🎁'}</span>
-      <div class="box-name">${box.name}</div>
-      ${box.opened&&box.result
-        ? `<div style="font-size:13px;font-weight:700;color:${box.result.color||'#aaa'};margin-top:4px">${box.result.grade}등급</div>
-           <div style="font-size:11px;color:#fff;margin-top:2px;word-break:keep-all;line-height:1.4">${box.result.item}</div>
-           ${(box.result.userName||box.userName)?`<div style="font-size:10px;color:var(--gold);margin-top:4px;font-family:'DM Mono',monospace">👤 ${box.result.userName||box.userName}</div>`:''}`
-        : box.expires&&!box.opened?`<div class="box-expires">~${box.expires.split('T')[0]}</div>`:''
-      }
+      <div class="box-name">${esc(box.name)}</div>
+      ${box.opened&&box.result?`
+        <div style="font-size:12px;font-weight:700;color:${box.result.color||'#aaa'};margin-top:4px">${box.result.grade}등급</div>
+        <div style="font-size:10px;color:#fff;margin-top:2px;word-break:keep-all;line-height:1.4">${esc(box.result.item)}</div>
+        ${(box.result.userName||box.userName)?`<div style="font-size:9px;color:var(--gold);margin-top:3px;font-family:'DM Mono',monospace">👤 ${esc(box.result.userName||box.userName)}</div>`:''}
+      `:''}
+      ${!box.opened&&box.showItems?'<div style="font-size:9px;color:var(--gold);margin-top:3px">📋 목록 보기</div>':''}
+      ${!box.opened&&box.expires?`<div style="font-size:9px;color:var(--dim);font-family:'DM Mono',monospace;margin-top:3px">~${box.expires.split('T')[0]}</div>`:''}
     </div>`).join('');
 }
 
-// ══ 개봉 UI ══
-let currentBoxUUID = '';
-let openPhase = 0; // 0:대기 1:흔들기 2:열리는중 3:결과
-
-
 function handleVaultClick(uuid){
-  const box = vault.find(b=>b.uuid===uuid);
-  if(!box||box.opened) return;
-  if(box.showItems){
-    showItemsModal(box);
-  } else {
-    openBoxUI(uuid);
-  }
+  const box=vault.find(b=>b.uuid===uuid);
+  if(!box||box.opened)return;
+  if(box.showItems) showItemsModal(box);
+  else openBoxUI(uuid);
 }
 
 function showItemsModal(box){
   document.getElementById('itemsModalTitle').textContent='🎁 '+box.name;
-  const grades = ['SSS','SS','S','A','B','C','D','E','F'];
-  const list = document.getElementById('itemsModalList');
-  list.innerHTML = (box.items||[]).map((item,i)=>`
-    <div style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
-      <span style="font-size:22px">🎁</span>
-      <span style="font-size:14px;color:#fff;font-weight:600">${item.name||'(상품명 없음)'}</span>
-    </div>`).join('');
-  document.getElementById('itemsModalOpenBtn').onclick = ()=>{
+  const list=document.getElementById('itemsModalList');
+  list.innerHTML=(box.items||[]).map(item=>{
+    const names=item.names||[item.name||''];
+    return `<div style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:9px;padding:9px 12px">
+      <div style="font-size:12px;color:#fff;font-weight:700">${names.map(n=>esc(n)).join(' / ')}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('itemsModalOpenBtn').onclick=()=>{
     document.getElementById('itemsModal').classList.remove('show');
     openBoxUI(box.uuid);
   };
   document.getElementById('itemsModal').classList.add('show');
 }
+
+// ══ 개봉 ══
+let currentBoxUUID='';
+let openPhase=0;
+
 function openBoxUI(uuid){
-  currentBoxUUID = uuid;
-  openPhase = 0;
+  currentBoxUUID=uuid;openPhase=0;
+  const box=vault.find(b=>b.uuid===uuid);
+  const animType=box?.animType||'box';
+
+  // 애니메이션 타입에 맞는 요소만 표시
+  document.getElementById('anim-box').style.display=animType==='box'?'block':'none';
+  document.getElementById('anim-roulette').style.display=animType==='roulette'?'block':'none';
+  document.getElementById('anim-capsule').style.display=animType==='capsule'?'block':'none';
+
   document.getElementById('openOverlay').classList.add('show');
   document.getElementById('open-hint').style.display='block';
   document.getElementById('resultCard').style.display='none';
-  document.getElementById('box3d').style.display='block';
-  document.getElementById('boxLid').style.transform='';
-  document.getElementById('boxBow').style.opacity='1';
-  document.getElementById('spotlight').className='spotlight';
   document.getElementById('openStage').className='open-stage';
+  document.getElementById('spotlight').className='spotlight';
   document.getElementById('particles').innerHTML='';
+
+  // 초기화
+  if(animType==='box'){
+    document.getElementById('boxLid').style.transform='';
+    document.getElementById('boxBow').style.opacity='1';
+  }
+  if(animType==='roulette') buildRoulette(box?.items||[]);
+  if(animType==='capsule'){
+    document.getElementById('capsuleTop').classList.remove('opened');
+    document.getElementById('anim-capsule').classList.remove('shaking');
+  }
 }
 
 function closeOverlay(){
@@ -554,139 +710,181 @@ function closeOverlay(){
   document.getElementById('sssBurst').classList.remove('show');
 }
 
+function buildRoulette(items){
+  const disk=document.getElementById('rouletteDisk');
+  const n=Math.max(items.length,4);
+  const colors=['#e07820','#c8661a','#a05018','#804010'];
+  let html='';
+  for(let i=0;i<n;i++){
+    const a=360/n*i;
+    const item=items[i];
+    const name=item?.names?.[0]||item?.name||'?';
+    const c=colors[i%colors.length];
+    html+=`<div style="position:absolute;width:100%;height:100%;transform:rotate(${a}deg);transform-origin:50% 50%">
+      <div style="position:absolute;top:8%;left:50%;transform:translateX(-50%);font-size:10px;color:#fff;font-weight:700;white-space:nowrap;background:rgba(0,0,0,.3);padding:2px 6px;border-radius:4px;max-width:70px;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
+    </div>`;
+  }
+  disk.innerHTML=html;
+  disk.style.background=`conic-gradient(${colors.map((c,i)=>`${c} ${360/n*i}deg ${360/n*(i+1)}deg`).join(',')})`;
+}
+
 async function startOpen(){
   if(openPhase!==0)return;
   openPhase=1;
-  document.getElementById('open-hint').textContent='박스가 흔들리고 있어요...';
+  const box=vault.find(b=>b.uuid===currentBoxUUID);
+  const animType=box?.animType||'box';
 
-  const box3d = document.getElementById('box3d');
-  box3d.classList.add('shaking');
+  document.getElementById('open-hint').textContent='두근두근...';
 
-  // 흔들기 2초
-  await sleep(2100);
-  box3d.classList.remove('shaking');
-  openPhase=2;
-
-  // 실제 확률 계산
-  const vaultBox = vault.find(b=>b.uuid===currentBoxUUID);
-  const result = roll(vaultBox?.items||[{grade:'F',name:'꽝'}]);
-
-  // 등급별 조명
-  const stage = document.getElementById('openStage');
-  stage.className = `open-stage grade-${result.grade}`;
-  const sl = document.getElementById('spotlight');
-  sl.classList.add('on');
-
-  await sleep(400);
-
-  // 뚜껑 열기
-  document.getElementById('boxBow').style.opacity='0';
-  document.getElementById('boxLid').style.transform='rotateX(-120deg) translateY(-30px)';
-
-  await sleep(700);
-
-  // 파티클
-  spawnParticles(result.gInfo?.color||'#fff');
-
-  // SSS 특수 효과
-  if(result.grade==='SSS'){
-    const burst = document.getElementById('sssBurst');
-    document.getElementById('sssItemText').textContent=result.item;
-    burst.classList.add('show');
-    await sleep(2500);
-    burst.classList.remove('show');
+  // ── 흔들기 단계
+  if(animType==='box'){
+    document.getElementById('anim-box').classList.add('shaking');
+    await sleep(2100);
+    document.getElementById('anim-box').classList.remove('shaking');
+  } else if(animType==='roulette'){
+    document.getElementById('rouletteDisk').classList.add('spinning');
+    await sleep(3000);
+  } else if(animType==='capsule'){
+    document.getElementById('anim-capsule').classList.add('shaking');
+    await sleep(2100);
+    document.getElementById('anim-capsule').classList.remove('shaking');
   }
 
-  // 결과 기록 API
-  try{
-    try{
-      await fetch(`https://corsproxy.io/?${encodeURIComponent(API)}`,{
-        method:'POST', headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'open', uuid:currentBoxUUID, grade:result.grade, item:result.item, memo:vault.find(b=>b.uuid===currentBoxUUID)?.userName||''})
-      });
-    }catch(e){
-      await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(API)}`,{
-        method:'POST', headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({action:'open', uuid:currentBoxUUID, grade:result.grade, item:result.item, memo:vault.find(b=>b.uuid===currentBoxUUID)?.userName||''})
-      });
-    }
-  }catch(e){}
+  openPhase=2;
+  const result=roll(box?.items||[],box?.allowBlank||false);
 
-  // 보관함 업데이트
-  const vb = vault.find(b=>b.uuid===currentBoxUUID);
-  if(vb){ vb.opened=true; vb.result={grade:result.grade, item:result.item, color:result.gInfo?.color||'#aaa', userName:vb.userName||''}; }
-  localStorage.setItem('mb-vault', JSON.stringify(vault));
+  // 조명
+  const stage=document.getElementById('openStage');
+  stage.className=`open-stage grade-${result.grade}`;
+  document.getElementById('spotlight').classList.add('on');
+  await sleep(400);
+
+  // ── 열기
+  if(animType==='box'){
+    document.getElementById('boxBow').style.opacity='0';
+    document.getElementById('boxLid').style.transform='rotateX(-120deg) translateY(-30px)';
+  } else if(animType==='capsule'){
+    document.getElementById('capsuleTop').classList.add('opened');
+  }
+
+  await sleep(700);
+  spawnParticles(result.gInfo?.color||'#fff');
+
+  if(result.grade==='SSS'){
+    document.getElementById('sssItemText').textContent=result.item;
+    document.getElementById('sssBurst').classList.add('show');
+    await sleep(2500);
+    document.getElementById('sssBurst').classList.remove('show');
+  }
+
+  // API 기록
+  try{
+    await apiPost({action:'open',uuid:currentBoxUUID,grade:result.grade,item:result.item,memo:box?.userName||''});
+  }catch(_){}
+
+  // vault 업데이트
+  const vb=vault.find(b=>b.uuid===currentBoxUUID);
+  if(vb){vb.opened=true;vb.result={grade:result.grade,item:result.item,color:result.gInfo?.color||'#aaa',userName:vb.userName||''};}
+  localStorage.setItem('mb-vault',JSON.stringify(vault));
   renderVault();
 
   // 결과 표시
-  box3d.style.display='none';
+  ['anim-box','anim-roulette','anim-capsule'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('open-hint').style.display='none';
-  const card = document.getElementById('resultCard');
-  const gradeEl = document.getElementById('resultGrade');
-  const itemEl = document.getElementById('resultItem');
-  const labelEl = document.getElementById('resultLabel');
-
-  gradeEl.textContent=result.grade;
-  gradeEl.style.color=result.gInfo?.color||'#fff';
-  itemEl.textContent=result.item;
-  labelEl.textContent=`${result.grade} 등급 · ${result.gInfo?.pct}%`;
+  const card=document.getElementById('resultCard');
+  document.getElementById('resultGrade').textContent=result.grade;
+  document.getElementById('resultGrade').style.color=result.gInfo?.color||'#fff';
+  document.getElementById('resultItem').textContent=result.item;
+  document.getElementById('resultLabel').textContent=`${result.grade}등급`;
   card.style.display='block';
   openPhase=3;
 }
 
 // 확률 계산
-function roll(items){
-  if(!items.length) return {grade:'F', item:'꽝', gInfo:GRADES.find(g=>g.grade==='F')};
+function roll(items,allowBlank){
+  if(!items.length)return{grade:'F',item:'꽝',gInfo:GRADES.find(g=>g.grade==='F')};
 
-  // 아이템별 등급 가져오기
-  const grades = assignGrades(items.length);
-  const pool = items.map((item,i)=>({
-    item: item.name,
-    grade: item.grade||grades[i],
-    gInfo: GRADES.find(g=>g.grade===(item.grade||grades[i]))
-  }));
+  // 배정된 등급 pool 구성
+  const pool=[];
+  items.forEach(item=>{
+    const names=item.names||[item.name||'꽝'];
+    names.forEach(name=>pool.push({grade:item.grade,item:name,gInfo:GRADES.find(g=>g.grade===item.grade)}));
+  });
 
-  // 누적 확률로 뽑기
-  const rand = Math.random()*100;
-  let cum=0;
-  for(const g of GRADES){
-    cum+=g.pct;
-    const match = pool.filter(p=>p.grade===g.grade);
-    if(rand<=cum && match.length){
-      return match[Math.floor(Math.random()*match.length)];
+  if(allowBlank){
+    // 고정 확률로 뽑기
+    const rand=Math.random()*100;let cum=0;
+    for(const g of GRADES){
+      cum+=g.pct;
+      const match=pool.filter(p=>p.grade===g.grade);
+      if(rand<=cum){
+        if(!match.length)return{grade:g.grade,item:'꽝',gInfo:g};
+        return match[Math.floor(Math.random()*match.length)];
+      }
     }
+    return pool[pool.length-1];
+  } else {
+    // 배정된 등급만 재분배
+    const assignedGrades=[...new Set(pool.map(p=>p.grade))];
+    const assigned=GRADES.filter(g=>assignedGrades.includes(g.grade));
+    const total=assigned.reduce((s,g)=>s+g.pct,0);
+    const rand=Math.random()*total;let cum=0;
+    for(const g of assigned){
+      cum+=g.pct;
+      const match=pool.filter(p=>p.grade===g.grade);
+      if(rand<=cum&&match.length)return match[Math.floor(Math.random()*match.length)];
+    }
+    return pool[pool.length-1];
   }
-  return pool[pool.length-1];
 }
 
-// 파티클
 function spawnParticles(color){
-  const container = document.getElementById('particles');
+  const c=document.getElementById('particles');
   for(let i=0;i<20;i++){
-    const p=document.createElement('div');
-    p.className='particle';
+    const p=document.createElement('div');p.className='particle';
     p.style.cssText=`left:${20+Math.random()*60}%;top:${40+Math.random()*30}%;background:${color};animation-delay:${Math.random()*.5}s;animation-duration:${.8+Math.random()*.6}s`;
-    container.appendChild(p);
+    c.appendChild(p);
   }
-  setTimeout(()=>container.innerHTML='',2000);
+  setTimeout(()=>c.innerHTML='',2000);
 }
 
-function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+// 이미지 저장
+async function saveResultImg(){
+  const grade=document.getElementById('resultGrade').textContent;
+  const item=document.getElementById('resultItem').textContent;
+  const gInfo=GRADES.find(g=>g.grade===grade);
+  const color=gInfo?.color||'#fff';
+  const canvas=document.createElement('canvas');
+  canvas.width=480;canvas.height=320;
+  const ctx=canvas.getContext('2d');
+  // 배경
+  ctx.fillStyle='#0a0a0f';ctx.fillRect(0,0,480,320);
+  ctx.fillStyle='rgba(255,255,255,.04)';ctx.beginPath();ctx.roundRect(20,20,440,280,16);ctx.fill();
+  // 등급
+  ctx.fillStyle=color;ctx.font='bold 72px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.shadowColor=color;ctx.shadowBlur=30;
+  ctx.fillText(grade,240,120);
+  // 상품
+  ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.font='bold 20px serif';ctx.fillText(item,240,200);
+  // 워터마크
+  ctx.fillStyle='rgba(255,255,255,.25)';ctx.font='12px monospace';ctx.fillText('고마워요 미스테리 박스',240,270);
+  // 다운로드
+  const a=document.createElement('a');
+  a.download=`mystery-${grade}-${Date.now()}.png`;
+  a.href=canvas.toDataURL('image/png');
+  a.click();
+}
 
-// URL 파라미터로 박스 코드 자동 입력
+// 초기화
 window.addEventListener('load',()=>{
   try{
     const params=new URLSearchParams(location.search);
     const boxId=params.get('box');
-    if(boxId){
-      switchTab('user');
-      document.getElementById('user-code').value=boxId;
-    } else {
-      loadAdminBoxes().catch(()=>{});
-    }
+    if(boxId){switchTab('user');document.getElementById('user-code').value=boxId;}
+    else loadAdminBoxes().catch(()=>{});
     renderVault();
     renderAdminItems();
-  }catch(e){ console.error(e); }
+  }catch(e){console.error(e);}
 });
 </script>
 </body>
