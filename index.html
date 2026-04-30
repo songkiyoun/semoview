@@ -1120,17 +1120,18 @@ async function apiFetch(base, params, method='GET', body=null){
     }
     return null;
   }
-  // POST: no-cors fallback
+  // POST: JSON 응답 필요 (로그인/저장 결과 확인)
   try{
     const r = await fetch(base, {
       method:'POST',
-      headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify(body),
-      mode:'no-cors'
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(body)
     });
-    // no-cors → opaque response → ok:true 가정
-    return {ok:true};
-  }catch(_){return null;}
+     const txt = await r.text();
+    try { return JSON.parse(txt); } catch(_) { return null; }
+  }catch(_){
+    return null;
+  }
 }
 
 async function apiGet(gas, params){ return await apiFetch(gas, {...params, token:_user?.token}); }
@@ -1170,7 +1171,7 @@ async function doLogin(){
     localStorage.setItem('sv4-user', JSON.stringify({code:user.code,name:user.name,grade:user.grade}));
     enterApp();
   } else {
-    err.textContent = res?.error || '로그인 실패. 코드명과 패스워드를 확인해주세요.';
+    err.textContent = res?.error || '로그인 실패. 네트워크/CORS 또는 코드명·패스워드를 확인해주세요.';
     btn.disabled=false; btn.textContent='로그인';
   }
 }
