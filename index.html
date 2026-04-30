@@ -1120,17 +1120,39 @@ async function apiFetch(base, params, method='GET', body=null){
     }
     return null;
   }
-  // POST: no-cors fallback
+  // POST: 프록시 체인 우선(브라우저 CORS 우회), 실패 시 직접 호출
+  const payload = JSON.stringify(body || {});
+  for(let i=0;i<PROXIES.length;i++){
+    const proxyUrl = PROXIES[(_pIdx+i)%PROXIES.length](base);
+    try{
+      const r = await fetch(proxyUrl, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: payload,
+        signal:AbortSignal.timeout(12000)
+      });
+      if(!r.ok) continue;
+      const txt = await r.text();
+      const data = JSON.parse(txt);
+      _pIdx = (_pIdx+i)%PROXIES.length;
+      return data;
+    }catch(_){ }
+  }
+
+  // 프록시 전체 실패 시 직접 호출 시도
   try{
     const r = await fetch(base, {
       method:'POST',
-      headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify(body),
-      mode:'no-cors'
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: payload,
+      signal:AbortSignal.timeout(12000)
     });
-    // no-cors → opaque response → ok:true 가정
-    return {ok:true};
-  }catch(_){return null;}
+    if(!r.ok) return null;
+    const txt = await r.text();
+    return JSON.parse(txt);
+  }catch(_){
+    return null;
+  }
 }
 
 async function apiGet(gas, params){ return await apiFetch(gas, {...params, token:_user?.token}); }
@@ -1170,7 +1192,7 @@ async function doLogin(){
     localStorage.setItem('sv4-user', JSON.stringify({code:user.code,name:user.name,grade:user.grade}));
     enterApp();
   } else {
-    err.textContent = res?.error || '로그인 실패. 코드명과 패스워드를 확인해주세요.';
+    err.textContent = res?.error || '로그인 실패. 네트워크/CORS 또는 코드명·패스워드를 확인해주세요.';
     btn.disabled=false; btn.textContent='로그인';
   }
 }
