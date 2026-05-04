@@ -1001,6 +1001,13 @@ let _notices = [];
 let _editId = null; // 현재 편집 중인 문서 ID
 let _calYear, _calMonth, _calSelected;
 
+// MB 등급별 확률 테이블
+const MB_GRADES=[
+  {grade:'SSS',pct:0.5},{grade:'SS',pct:1.5},{grade:'S',pct:4},
+  {grade:'A',pct:10},{grade:'B',pct:20},{grade:'C',pct:25},
+  {grade:'D',pct:20},{grade:'E',pct:10},{grade:'F',pct:9}
+];
+
 // MB 전역 변수 (선언 위치 중요 — 함수 정의 전 최상단)
 let mbCurrentBox = null;
 let mbVault = [];
@@ -2737,8 +2744,10 @@ function mbCapsuleOpenAnim(){
 
 async function mbDoOpen(){
   const btn=document.getElementById('mb-open-btn');
+  if(!btn) return;
   btn.textContent='두근두근…';btn.disabled=true;
   const box=mbCurrentBox;
+  if(!box){btn.textContent='🎁 지금 열기';btn.disabled=false;alert('박스 정보가 없습니다. 다시 수령해주세요.');return;}
   const anim=box?.animType||box?.anim||'box';
   let bItems=box?.items||[];
   if(typeof bItems==='string'){try{bItems=JSON.parse(bItems);}catch(_){bItems=[];}}
@@ -2754,7 +2763,12 @@ async function mbDoOpen(){
     for(const g of pool){r-=g.pct;if(r<=0){const item=g.list[Math.floor(Math.random()*g.list.length)]||'꽝';return{grade:item==='꽝'?'F':g.grade,item};}}
     const last=pool[pool.length-1];const item=last.list[0]||'꽝';return{grade:item==='꽝'?'F':last.grade,item};
   }
-  const prize=mbDraw();
+
+  let prize;
+  try{prize=mbDraw();}catch(e){
+    btn.textContent='🎁 지금 열기';btn.disabled=false;
+    alert('추첨 오류: '+e.message);return;
+  }
 
   try{
     if(anim==='box') await mbBoxOpenAnim();
@@ -2779,12 +2793,11 @@ async function mbDoOpen(){
   const pi=mbVault.findIndex(v=>v.pending&&v.uuid===box.uuid);
   if(isFail){
     if(pi>=0)mbVault.splice(pi,1);
-    incLocalFailCount(); // 로컬 꽝 카운트 증가
+    incLocalFailCount();
   }
   else{const result={grade:prize.grade,item:prize.item,boxName:box.name||'',date:todayStr()};if(pi>=0)mbVault[pi]=result;else mbVault.unshift(result);}
   try{localStorage.setItem('sv4-mb-vault',JSON.stringify(mbVault.slice(0,50)));}catch(_){}
   mbRenderVault();
-  // 꽝이든 아니든 failCount 갱신 (꽝 카운트 서버에서 관리)
   mbLoadFailCount();
 }
 
