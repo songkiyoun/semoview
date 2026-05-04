@@ -394,7 +394,7 @@ a{color:inherit;text-decoration:none}
 <div id="login-screen">
   <div class="login-box">
     <div class="login-logo">Semo<em>View</em></div>
-    <div class="login-sub">다이겨 업무 플랫폼 · v4.0</div>
+    <div class="login-sub">다이겨 업무 플랫폼 · v1.0</div>
     <div class="login-field">
       <label class="login-label">코드명</label>
       <input class="login-input" id="lc-code" type="text" placeholder="코드명을 입력하세요" autocomplete="username">
@@ -405,7 +405,7 @@ a{color:inherit;text-decoration:none}
     </div>
     <button class="login-btn" id="lc-btn" onclick="doLogin()">로그인</button>
     <div class="login-err" id="lc-err"></div>
-    <div class="login-ver">SemoView v4.0 · Daigyo</div>
+    <div class="login-ver">SemoView v1.0 · Daigyeo</div>
   </div>
 </div>
 
@@ -988,7 +988,7 @@ const GAS_A = 'https://script.google.com/macros/s/AKfycbz1UGj0HSvmfOSDp_G1Wk9I1o
 const GAS_B = 'https://script.google.com/macros/s/AKfycbxF027mVDLQvmRMV09hW4KNmsYOO93NyKussg17iwXlbHZuoyR59qYJclHmWfsOEgWmew/exec';
 const GAS_C = 'https://script.google.com/macros/s/AKfycbzsMJwkkGwzHWyY-Krwu63Is0BqEvnLLy8dyNRUcnTQIt5AjlWRaz-cWjqbnvdvYClMUA/exec';
 const TOKEN_SECRET = 'SEMOVIEW_SECRET_2026'; // GAS A·B와 동일해야 함
-const APP_VER = 'v4.0';
+const APP_VER = 'v1.0';
 
 // ════════════════════════════════
 //  상태
@@ -2640,6 +2640,9 @@ function mbVaultDelete(i){
 function mbOpenPending(i){
   const item=mbVault[i];
   if(!item?.pending) return;
+  // 1번: 열기 중복 클릭 방지 — 버튼을 즉시 비활성화
+  const btns=document.querySelectorAll('[id^="mb-vault-wrap"] button, #mb-vault-wrap button');
+  btns.forEach(b=>{if(b.textContent.includes('열기')){b.disabled=true;b.textContent='열기 중…';}});
   mbCurrentBox={uuid:item.uuid,name:item.boxName,animType:'box',items:[],recipientName:_user.name,claimRowId:item.claimRowId};
   mbApiGet({action:'get',uuid:item.uuid}).then(res=>{
     if(res?.ok&&res.box) mbCurrentBox={...res.box,uuid:item.uuid,recipientName:_user.name,claimRowId:item.claimRowId};
@@ -2714,10 +2717,18 @@ function mbShowOverlay(){
       <button id="mb-open-btn" onclick="mbDoOpen()" style="background:#c9a96e;border:none;border-radius:10px;padding:14px 40px;color:#0c0c11;font-family:var(--font);font-size:16px;font-weight:700;cursor:pointer">🎁 지금 열기</button>
     </div>
     <div id="mb-prize-card" style="display:none;background:linear-gradient(135deg,rgba(201,169,110,.16),rgba(201,169,110,.05));border:2px solid rgba(201,169,110,.32);border-radius:16px;padding:32px 40px;text-align:center;max-width:320px;width:90vw">
-      <div id="mb-prize-grade" style="margin-bottom:10px"></div>
-      <div id="mb-prize-item" style="font-size:26px;font-weight:700;color:#fff;margin-bottom:8px;line-height:1.3"></div>
-      <div id="mb-prize-box" style="font-size:13px;color:rgba(255,255,255,.45)"></div>
-      <button onclick="document.getElementById('mb-overlay').style.display='none'" style="margin-top:20px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:10px 24px;color:rgba(255,255,255,.7);font-family:var(--font);cursor:pointer;font-size:14px">닫기</button>
+      <div id="mb-coupon-area" style="background:linear-gradient(145deg,#1a1a2e,#16213e);border:2px solid rgba(201,169,110,.5);border-radius:12px;padding:20px 24px;margin-bottom:16px">
+        <div style="font-size:11px;letter-spacing:2px;color:rgba(201,169,110,.7);margin-bottom:10px;font-weight:700">✦ SEMOVIEW MYSTERY BOX ✦</div>
+        <div id="mb-coupon-box" style="font-size:12px;color:rgba(255,255,255,.5);margin-bottom:6px"></div>
+        <div id="mb-prize-grade" style="margin-bottom:8px"></div>
+        <div id="mb-prize-item" style="font-size:24px;font-weight:700;color:#fff;margin-bottom:10px;line-height:1.3"></div>
+        <div style="width:100%;height:1px;background:rgba(201,169,110,.25);margin-bottom:10px"></div>
+        <div id="mb-coupon-name" style="font-size:11px;color:rgba(255,255,255,.45)"></div>
+        <div id="mb-coupon-date" style="font-size:11px;color:rgba(255,255,255,.3);margin-top:3px"></div>
+      </div>
+      <div id="mb-prize-box" style="display:none"></div>
+      <button onclick="mbDownloadCoupon()" style="display:block;width:100%;background:#c9a96e;border:none;border-radius:8px;padding:11px 0;color:#0c0c11;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">📥 쿠폰 저장 (JPG)</button>
+      <button onclick="document.getElementById('mb-overlay').style.display='none';mbLoadFailCount()" style="width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:10px 0;color:rgba(255,255,255,.7);font-family:var(--font);cursor:pointer;font-size:14px">닫기</button>
     </div>`;
   ov.style.display='flex';
   if(anim==='roulette') mbRouletteStart();
@@ -2880,11 +2891,17 @@ async function mbDoOpen(){
   const prizeGrade=document.getElementById('mb-prize-grade');
   const prizeItem=document.getElementById('mb-prize-item');
   const prizeBox=document.getElementById('mb-prize-box');
+  const couponBox=document.getElementById('mb-coupon-box');
+  const couponName=document.getElementById('mb-coupon-name');
+  const couponDate=document.getElementById('mb-coupon-date');
   const animWrap=document.getElementById('mb-anim-wrap');
   const prizeCard=document.getElementById('mb-prize-card');
   if(prizeGrade) prizeGrade.innerHTML=`<span style="display:inline-block;padding:4px 14px;border-radius:8px;font-size:14px;font-weight:700;background:${gb[prize.grade]||'rgba(255,255,255,.06)'};color:${gc[prize.grade]||'#fff'};border:1px solid ${gc[prize.grade]||'rgba(255,255,255,.2)'}">${prize.grade}</span>`;
   if(prizeItem) prizeItem.textContent=prize.item;
   if(prizeBox) prizeBox.textContent=box.name||'';
+  if(couponBox) couponBox.textContent=box.name||'';
+  if(couponName) couponName.textContent='수령자: '+(_user.name||'');
+  if(couponDate) couponDate.textContent=new Date().toLocaleDateString('ko-KR');
   if(animWrap) animWrap.style.display='none';
   if(prizeCard) prizeCard.style.display='block';
 
@@ -2904,7 +2921,90 @@ async function mbDoOpen(){
   mbLoadFailCount();
 }
 
-// ── MB 관리자
+function mbDownloadCoupon(){
+  const grade=document.getElementById('mb-prize-grade')?.querySelector('span')?.textContent||'';
+  const item=document.getElementById('mb-prize-item')?.textContent||'';
+  const boxName=document.getElementById('mb-coupon-box')?.textContent||'';
+  const name=document.getElementById('mb-coupon-name')?.textContent||'';
+  const date=document.getElementById('mb-coupon-date')?.textContent||'';
+
+  const W=600,H=380;
+  const canvas=document.createElement('canvas');
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+
+  // 배경
+  const bg=ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#1a1a2e');bg.addColorStop(1,'#16213e');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  // 테두리
+  ctx.strokeStyle='rgba(201,169,110,0.6)';ctx.lineWidth=3;
+  ctx.strokeRect(8,8,W-16,H-16);
+  ctx.strokeStyle='rgba(201,169,110,0.2)';ctx.lineWidth=1;
+  ctx.strokeRect(14,14,W-28,H-28);
+
+  // 상단 타이틀
+  ctx.fillStyle='rgba(201,169,110,0.7)';
+  ctx.font='bold 13px sans-serif';ctx.textAlign='center';
+  ctx.fillText('✦ SEMOVIEW MYSTERY BOX ✦',W/2,52);
+
+  // 구분선
+  ctx.strokeStyle='rgba(201,169,110,0.3)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(40,65);ctx.lineTo(W-40,65);ctx.stroke();
+
+  // 박스이름
+  ctx.fillStyle='rgba(255,255,255,0.5)';
+  ctx.font='14px sans-serif';ctx.textAlign='center';
+  ctx.fillText(boxName,W/2,95);
+
+  // 등급 배경
+  const gc={'SSS':'#ffd700','SS':'#ff6464','S':'#c9a96e','A':'#a78bfa','B':'#5b9bd5','C':'#5fcf85','D':'#e8923a','E':'rgba(255,255,255,0.5)','F':'rgba(255,255,255,0.3)'};
+  const gradeColor=gc[grade]||'#c9a96e';
+  ctx.fillStyle='rgba(201,169,110,0.12)';
+  roundRect(ctx,W/2-50,108,100,36,10);ctx.fill();
+  ctx.strokeStyle=gradeColor;ctx.lineWidth=1.5;
+  roundRect(ctx,W/2-50,108,100,36,10);ctx.stroke();
+  ctx.fillStyle=gradeColor;
+  ctx.font='bold 18px sans-serif';ctx.textAlign='center';
+  ctx.fillText(grade,W/2,133);
+
+  // 상품명
+  ctx.fillStyle='#ffffff';
+  ctx.font='bold 28px sans-serif';ctx.textAlign='center';
+  ctx.fillText(item,W/2,188);
+
+  // 구분선
+  ctx.strokeStyle='rgba(201,169,110,0.25)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(40,210);ctx.lineTo(W-40,210);ctx.stroke();
+
+  // 수령자·날짜
+  ctx.fillStyle='rgba(255,255,255,0.45)';
+  ctx.font='13px sans-serif';ctx.textAlign='center';
+  ctx.fillText(name,W/2,238);
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.font='12px sans-serif';
+  ctx.fillText(date,W/2,260);
+
+  // 하단 장식
+  ctx.fillStyle='rgba(201,169,110,0.4)';
+  ctx.font='11px sans-serif';
+  ctx.fillText('세모뷰 데일리 v1.0 · Daigyeo',W/2,H-24);
+
+  // 다운로드
+  const a=document.createElement('a');
+  a.download=`semoview_coupon_${grade}_${Date.now()}.jpg`;
+  a.href=canvas.toDataURL('image/jpeg',0.92);
+  a.click();
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
 let _mbBoxFilter='all';
 async function loadMbAdmin(){
   const body=document.getElementById('mb-admin-body');
@@ -4152,9 +4252,9 @@ function printOrderData(o){
     body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:20mm 15mm;color:#000;font-size:11px;width:210mm;height:297mm;overflow:hidden}
     .header-table{width:100%;border-collapse:collapse;margin-bottom:8px}
     .header-table td{border:1px solid #000;vertical-align:middle}
-    .title-cell{font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;padding:8px 12px;width:50%}
-    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0}
-    .sign-body{height:40px;text-align:center}
+    .title-cell{font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;padding:8px 12px;width:75%}
+    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0;width:12.5%}
+    .sign-body{height:40px;text-align:center;width:12.5%}
     .meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:11px}
     .meta-item{padding:5px 8px;border:1px solid #ddd;background:#f9f9f9}
     .meta-label{font-size:10px;color:#666;margin-bottom:2px}
@@ -4289,9 +4389,9 @@ function printExpenseData(e){
     body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:20mm 15mm;color:#000;font-size:11px;width:210mm;height:297mm;overflow:hidden}
     .header-table{width:100%;border-collapse:collapse;margin-bottom:8px}
     .header-table td{border:1px solid #000;vertical-align:middle}
-    .title-cell{font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;padding:8px 12px;width:50%}
-    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0}
-    .sign-body{height:40px;text-align:center}
+    .title-cell{font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;padding:8px 12px;width:75%}
+    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0;width:12.5%}
+    .sign-body{height:40px;text-align:center;width:12.5%}
     .meta-row{display:flex;gap:20px;font-size:11px;margin-bottom:8px;padding:5px 8px;background:#f9f9f9;border:1px solid #ddd}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #888;padding:3px 5px;font-size:10px;overflow:hidden}
