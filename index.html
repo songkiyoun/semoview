@@ -3720,6 +3720,8 @@ function mbOpenCreateFromTemplate(jsonStr){
     },150);
   }catch(e){ console.error('템플릿 오류',e); }
 }
+
+async function mbSubmitCreate(){
   const name=document.getElementById('mb-c-name')?.value.trim();
   if(!name){alert('박스 이름을 입력해주세요.');return;}
   const grades=[...document.querySelectorAll('#mb-c-grades-wrap > div')].map(div=>({
