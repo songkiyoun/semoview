@@ -490,14 +490,14 @@ a{color:inherit;text-decoration:none}
     <button class="sb-item" id="sb-profile" onclick="nav('profile',this)">
       <span class="si">👤</span><span class="sl">내 프로필</span>
     </button>
-    <button class="sb-item sb-admin-only" id="sb-mapeon-inbox" onclick="openMapeonInbox()" style="display:none">
+    <button class="sb-item sb-admin-only" id="sb-mapeon-inbox" onclick="openMapeonInbox()">
       <span class="si">💬</span><span class="sl">마음의소리 수신함</span>
       <span class="sb-badge" id="sb-mapeon-badge" style="display:none">0</span>
     </button>
     <button class="sb-item" onclick="openMapeonModal()">
       <span class="si">💬</span><span class="sl">마음의소리</span>
     </button>
-    <button class="sb-item" id="sb-notice-admin" onclick="nav('notice-admin',this)" style="display:none">
+    <button class="sb-item sb-admin-only" id="sb-notice-admin" onclick="nav('notice-admin',this)">
       <span class="si">📢</span><span class="sl">공지 작성</span>
     </button>
   </div>
@@ -1149,11 +1149,12 @@ async function apiFetch(base, params, method='GET', body=null, needResponse=fals
   }catch(_){return null;}
 }
 
-async function apiGet(gas, params){ return await apiFetch(gas, {...params, token:_user?.token}); }
+// GET: code+secret+grade를 직접 파라미터로 전달 (토큰 URL 인코딩 문제 우회)
+async function apiGet(gas, params){
+  return await apiFetch(gas, {...params, code:_user?.code, grade:_user?.grade, secret:TOKEN_SECRET});
+}
 async function apiPost(gas, body){ return await apiFetch(gas, null, 'POST', {...body, token:_user?.token}); }
 async function apiPostVerified(gas, body){
-  // POST지만 응답이 필요한 경우: 프록시 GET처럼 처리할 수 없으므로
-  // 중요한 POST는 GAS에 별도 처리 필요. 현재 구조에서는 OK 가정.
   return await apiPost(gas, body);
 }
 
@@ -1200,15 +1201,17 @@ async function doLogin(){
 }
 
 function tryAutoLogin(){
-  const token = localStorage.getItem('sv4-token');
+  const token  = localStorage.getItem('sv4-token');
   const stored = localStorage.getItem('sv4-user');
-  if(token && stored){
-    const user = decodeToken(token);
-    if(user){
-      _user = {...user, token};
-      enterApp();
-      return true;
-    }
+  if(stored){
+    try{
+      const user = JSON.parse(stored);
+      if(user?.code && user?.name && user?.grade){
+        _user = {...user, token: token||''};
+        enterApp();
+        return true;
+      }
+    }catch(_){}
   }
   return false;
 }
