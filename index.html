@@ -1043,13 +1043,14 @@ async function apiFetch(base, params, method='GET', body=null, needResponse=fals
     return null;
   }
 
-  // 응답 불필요한 POST: no-cors (빠른 저장용)
+  // 응답 불필요한 POST: no-cors + keepalive (페이지 언로드 후에도 요청 유지)
   try{
     await fetch(base, {
       method:'POST',
       headers:{'Content-Type':'text/plain'},
       body: JSON.stringify(body),
-      mode:'no-cors'
+      mode:'no-cors',
+      keepalive: true
     });
     return {ok:true};
   }catch(_){return null;}
@@ -1142,9 +1143,25 @@ function enterApp(){
   document.getElementById('lc-pw').value='';
 }
 
-// ── 리로드 유틸: 현재 탭 저장 후 전체 리로드
-function reloadTo(tab){
+// ── 로딩 오버레이
+function showLoading(msg='처리 중…'){
+  let ov = document.getElementById('global-loading');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'global-loading';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px';
+    ov.innerHTML = `<div class="spin" style="width:32px;height:32px;border-width:3px"></div><div style="font-size:13px;color:rgba(255,255,255,.7)">${msg}</div>`;
+    document.body.appendChild(ov);
+  }
+  ov.style.display = 'flex';
+}
+function hideLoading(){ const ov=document.getElementById('global-loading'); if(ov) ov.style.display='none'; }
+
+// ── 리로드 유틸: POST 완료 후 리로드 (딜레이로 GAS 수신 보장)
+async function reloadTo(tab, delay=800){
+  showLoading('저장 중…');
   localStorage.setItem('sv4-last-tab', tab);
+  await new Promise(r=>setTimeout(r, delay));
   location.reload();
 }
 
@@ -1227,6 +1244,7 @@ function doLogout(){
 //  초기 데이터 로드
 // ════════════════════════════════
 async function loadInitialData(){
+  showLoading('데이터 불러오는 중…');
   // 멤버 로드
   const mRes = await apiGet(GAS_A, {action:'get_members'});
   if(mRes?.ok) {
@@ -1236,9 +1254,8 @@ async function loadInitialData(){
   // 공지 로드
   await loadNotices();
   // 일정·할일 로드
-  loadEvents();
-  loadTodos();
-  loadContacts();
+  await Promise.all([loadEvents(), loadTodos(), loadContacts()]);
+  hideLoading();
 }
 
 function populateMemberSelects(){
@@ -1848,6 +1865,7 @@ async function deleteTodo(id){
 // ════════════════════════════════
 let _orders=[];
 async function loadOrders(){
+  document.getElementById('order-body').innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
   const res=await apiGet(GAS_B,{action:'list_orders'});
   if(res?.ok) _orders=res.orders||[];
   renderOrders();
@@ -1982,6 +2000,7 @@ async function deleteOrder(id){
 // ════════════════════════════════
 let _expenses=[];
 async function loadExpenses(){
+  document.getElementById('expense-body').innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
   const res=await apiGet(GAS_B,{action:'list_expenses'});
   if(res?.ok) _expenses=res.expenses||[];
   renderExpenses();
@@ -2117,6 +2136,7 @@ let _refunds=[];
 let _refundEditId = null;
 
 async function loadRefunds(){
+  document.getElementById('refund-body').innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
   const res=await apiGet(GAS_B,{action:'list_refunds'});
   if(res?.ok) _refunds=res.refunds||[];
   renderRefunds();
@@ -2252,7 +2272,6 @@ async function loadContacts(){
   const res=await apiGet(GAS_B,{action:'list_contacts'});
   if(res?.ok) _contacts=res.contacts||[];
   renderContacts();
-  // 발주서 자동완성 업데이트
   const dl=document.getElementById('contact-list');
   if(dl) dl.innerHTML=_contacts.map(c=>`<option value="${esc(c.name)}">`).join('');
 }
