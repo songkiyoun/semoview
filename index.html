@@ -257,12 +257,13 @@ a{color:inherit;text-decoration:none}
   padding:10px 0;border-bottom:1px solid var(--b2);
 }
 .todo-check{
-  width:18px;height:18px;border:2px solid var(--b);border-radius:5px;
+  width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-radius:5px;
   flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;
-  margin-top:2px;transition:all .15s;
+  margin-top:1px;transition:all .15s;background:transparent;user-select:none;
 }
+.todo-check:hover{border-color:var(--green);background:rgba(95,207,133,.1)}
 .todo-check.done{background:var(--green);border-color:var(--green)}
-.todo-check.done::after{content:'✓';font-size:10px;color:#fff;font-weight:700}
+.todo-check.done::after{content:'✓';font-size:12px;color:#fff;font-weight:700}
 .todo-content{flex:1;min-width:0}
 .todo-text{font-size:13.5px;color:#fff}
 .todo-text.done{text-decoration:line-through;color:var(--dim)}
@@ -1238,7 +1239,8 @@ function doLogout(){
   if(!confirm('로그아웃 하시겠습니까?')) return;
   localStorage.removeItem('sv4-token');
   localStorage.removeItem('sv4-user');
-  _user=null; _events=[]; _todos=[]; _notices=[]; _contacts=[];
+  _user=null; _members=[]; _events=[]; _todos=[]; _notices=[];
+  _contacts=[]; _orders=[]; _expenses=[]; _refunds=[];
   document.getElementById('topbar').style.display='none';
   document.getElementById('app-body').style.display='none';
   document.getElementById('login-screen').style.display='flex';
@@ -1384,10 +1386,13 @@ function getUnreadNotices(){
 }
 
 async function readNotice(id){
-  await apiPost(GAS_A, {action:'read_notice', id});
+  // 로컬 즉시 반영
   const n = _noticeCache.find(x=>x.id===id);
   if(n) n.read=true;
   updateNotifBadge();
+  updateMapeonBadge();
+  // 백그라운드 서버 저장
+  apiPost(GAS_A,{action:'read_notice',id});
 }
 
 async function submitNotice(){
@@ -1396,12 +1401,25 @@ async function submitNotice(){
   const title   = document.getElementById('notice-title')?.value.trim()||'';
   const content = document.getElementById('notice-content')?.value.trim()||'';
   const st      = document.getElementById('notice-status');
-  if(!title||!content){if(st)st.textContent='제목과 내용을 입력해주세요.';return;}
-  if(st){st.style.color='var(--dim)';st.textContent='발송 중…';}
-  await apiPost(GAS_A,{action:'save_notice',type,receiver:type==='전체공지'?'ALL':receiver,title,content});
+  if(!title||!content){if(st){st.style.color='var(--red)';st.textContent='제목과 내용을 입력해주세요.';}return;}
+
+  // 로컬 즉시 반영
+  const recv = type==='전체공지' ? 'ALL' : receiver;
+  const newNotice = {
+    id:'NT-'+Date.now(), type, sender:_user.code,
+    receiver:recv, title, content,
+    createdAt:new Date().toISOString(), read:false
+  };
+  _noticeCache.unshift(newNotice);
+  updateNotifBadge();
+
   if(st){st.style.color='var(--green)';st.textContent='✓ 공지가 발송됐습니다.';}
   document.getElementById('notice-title').value='';
   document.getElementById('notice-content').value='';
+
+  // 백그라운드 서버 저장
+  apiPost(GAS_A,{action:'save_notice',type,receiver:recv,title,content});
+  setTimeout(()=>{if(st)st.textContent='';},3000);
 }
 
 function openNotifModal(){
@@ -1435,33 +1453,65 @@ async function submitMapeon(){
 
 function openMapeonInbox(){
   openModal('mapeon-inbox-modal');
+  renderMapeonInbox();
+}
+
+function renderMapeonInbox(){
   const body = document.getElementById('mapeon-inbox-body');
   const mapeons = _noticeCache.filter(n=>n.type==='마음의소리').reverse();
   if(!mapeons.length){body.innerHTML='<div class="empty">접수된 마음의소리가 없습니다.</div>';return;}
-  const memberMap = {};
-  _members.forEach(m=>memberMap[m.code]=m.name);
-  body.innerHTML = mapeons.map(n=>`
-    <div class="notif-item ${n.read?'':'unread'}" onclick="readNotice('${n.id}');this.classList.remove('unread')">
-      <div class="notif-type">마음의소리</div>
-      <div class="notif-title">${esc(n.title)}</div>
-      <div style="font-size:12px;color:var(--dim);margin-top:2px">${esc(n.content)}</div>
-      <div style="display:flex;gap:12px;margin-top:4px">
+  const memberMap={};_members.forEach(m=>memberMap[m.code]=m.name);
+  body.innerHTML = `
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button class="btn btn-ghost btn-sm" onclick="markAllMapeonRead()">전체 읽음 처리</button>
+    </div>`+
+    mapeons.map(n=>`
+    <div style="padding:12px 0;border-bottom:1px solid var(--b2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:11px;font-weight:700;color:${n.read?'var(--dim)':'var(--gold)'}">
+          ${n.read?'확인됨':'● 미확인'}
+        </span>
+        <span style="font-size:11px;color:var(--dim)">${fmtDateTime(n.createdAt)}</span>
+      </div>
+      <div style="font-size:13.5px;font-weight:${n.read?'400':'600'};color:${n.read?'var(--mid)':'#fff'};margin-bottom:4px">${esc(n.title)}</div>
+      <div style="font-size:12.5px;color:var(--dim);white-space:pre-wrap;line-height:1.6">${esc(n.content)}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
         <span style="font-size:11px;color:var(--gold)">발신: ${esc(memberMap[n.sender]||n.sender)}</span>
-        <span class="notif-time">${fmtDateTime(n.createdAt)}</span>
+        ${!n.read?`<button class="btn btn-ghost btn-sm" onclick="readNotice('${n.id}');renderMapeonInbox()">확인</button>`:''}
       </div>
     </div>`).join('');
 }
 
+function markAllMapeonRead(){
+  _noticeCache.filter(n=>n.type==='마음의소리'&&!n.read).forEach(n=>{
+    n.read=true;
+    apiPost(GAS_A,{action:'read_notice',id:n.id});
+  });
+  updateMapeonBadge();
+  renderMapeonInbox();
+}
+
 function loadNoticeAdmin(){
-  // 수신자 셀렉트 채우기
+  // 유형 변경 이벤트
+  const typeEl = document.getElementById('notice-type');
+  const recvWrap = document.getElementById('notice-receiver-wrap');
+  if(typeEl && recvWrap){
+    typeEl.onchange = ()=>{
+      recvWrap.style.display = typeEl.value==='개인공지' ? 'block' : 'none';
+    };
+  }
+  // 수신자 드롭다운 채우기
   const sel = document.getElementById('notice-receiver');
   if(sel){
     sel.innerHTML='';
     _members.filter(m=>m.code!==_user.code).forEach(m=>{
       const opt=document.createElement('option');
-      opt.value=m.code;opt.textContent=m.name;sel.appendChild(opt);
+      opt.value=m.code; opt.textContent=m.name; sel.appendChild(opt);
     });
   }
+  // 상태 초기화
+  const st=document.getElementById('notice-status');
+  if(st) st.textContent='';
 }
 
 // ════════════════════════════════
@@ -1640,16 +1690,20 @@ async function saveEvent(){
   const title = document.getElementById('ev-title').value.trim();
   if(!title){alert('제목을 입력해주세요.');return;}
   const isHol = type!=='일정';
-  const startAt = isHol
-    ? document.getElementById('ev-date').value+'T00:00'
-    : document.getElementById('ev-start').value;
-  const endAt = isHol ? '' : document.getElementById('ev-end').value;
-  const body={action:'save_event',id:_editId||'',type,title,startAt,endAt,
-    place:document.getElementById('ev-place').value,
-    memo:document.getElementById('ev-memo').value};
-  await apiPost(GAS_A,body);
+  const startAt = isHol ? document.getElementById('ev-date').value+'T00:00' : document.getElementById('ev-start').value;
+  const endAt   = isHol ? '' : document.getElementById('ev-end').value;
+  const place   = document.getElementById('ev-place').value;
+  const memo    = document.getElementById('ev-memo').value;
+  const id      = _editId || ('EV-'+Date.now());
+
+  // Optimistic update
+  const updated={code:_user.code,id,type,title,startAt,endAt,place,memo,color:'',createdAt:new Date().toISOString().slice(0,10)};
+  if(_editId){const idx=_events.findIndex(e=>e.id===_editId);if(idx>=0)_events[idx]={..._events[idx],...updated};else _events.unshift(updated);}
+  else _events.unshift(updated);
   closeModal('event-modal');
-  await loadEvents();
+  renderSchedule(); renderCalendar();
+
+  apiPost(GAS_A,{action:'save_event',id:_editId||'',type,title,startAt,endAt,place,memo});
 }
 
 async function deleteEvent(id){
@@ -1812,15 +1866,19 @@ function openTodoModal(id=null){
 async function saveTodo(){
   const content=document.getElementById('td-content').value.trim();
   if(!content){alert('내용을 입력해주세요.');return;}
-  await apiPost(GAS_A,{
-    action:'save_todo',id:_editId||'',
-    content,
-    priority:document.getElementById('td-priority').value,
-    dueDate:document.getElementById('td-due').value,
-    assignee:document.getElementById('td-assignee')?.value||'',
-  });
+  const priority=document.getElementById('td-priority').value;
+  const dueDate=document.getElementById('td-due').value;
+  const assignee=document.getElementById('td-assignee')?.value||'';
+  const id=_editId||('TD-'+Date.now());
+
+  // Optimistic update
+  const updated={code:_user.code,id,content,priority,dueDate,assignee,sender:assignee?_user.code:'',done:false,doneAt:'',createdAt:new Date().toISOString().slice(0,10)};
+  if(_editId){const idx=_todos.findIndex(t=>t.id===_editId);if(idx>=0)_todos[idx]={..._todos[idx],...updated};else _todos.unshift(updated);}
+  else _todos.unshift(updated);
   closeModal('todo-modal');
-  await loadTodos();
+  renderTodos();
+
+  apiPost(GAS_A,{action:'save_todo',id:_editId||'',content,priority,dueDate,assignee});
 }
 
 async function toggleTodo(id,done){
@@ -1913,16 +1971,28 @@ async function saveOrder(){
   if(!client){alert('거래처명을 입력해주세요.');return;}
   const items=[...document.querySelectorAll('.ord-item')].map(i=>({item:i.value.trim()})).filter(i=>i.item);
   if(!items.length){alert('품목을 1개 이상 입력해주세요.');return;}
-  await apiPost(GAS_B,{
-    action:'save_order',id:_editId||'',client,items,
-    startDate:document.getElementById('ord-start').value,
-    dueDate:document.getElementById('ord-due').value,
-    detail:document.getElementById('ord-detail').value,
-    receiver:document.getElementById('ord-receiver').value,
-    status:'완료'
-  });
+  const receiver=document.getElementById('ord-receiver').value;
+  const startDate=document.getElementById('ord-start').value;
+  const dueDate=document.getElementById('ord-due').value;
+  const detail=document.getElementById('ord-detail').value;
+
+  // Optimistic update: 즉시 로컬 반영
+  const id = _editId || ('ORD-' + Date.now());
+  const updated = {code:_user.code, id, client, items, startDate, dueDate, detail, status:'완료', receiver, confirmed:false, confirmedAt:''};
+  if(_editId){
+    const idx=_orders.findIndex(o=>o.id===_editId);
+    if(idx>=0) _orders[idx]={..._orders[idx],...updated};
+    else _orders.unshift(updated);
+  } else {
+    _orders.unshift(updated);
+  }
   closeModal('order-modal');
-  await loadOrders();
+  renderOrders();
+
+  // 백그라운드 서버 저장
+  apiPost(GAS_B,{action:'save_order',id:_editId||'',client,items,startDate,dueDate,detail,receiver,status:'완료'});
+  // 서버 ID로 교체 (백그라운드)
+  if(!_editId) setTimeout(()=>loadOrders(), 3000);
 }
 
 async function viewOrder(id){
@@ -1960,10 +2030,13 @@ async function viewOrder(id){
 }
 
 async function confirmOrder(id){
-  await apiPost(GAS_B,{action:'confirm_order',id});
+  // Optimistic update: 즉시 로컬 반영
+  const o=_orders.find(x=>x.id===id);
+  if(o){ o.confirmed=true; o.confirmedAt=new Date().toLocaleString('ko-KR'); }
   closeModal('doc-view-modal');
-  alert('수신 확인 처리됐습니다.');
-  await loadOrders();
+  renderOrders();
+  // 백그라운드 서버 저장
+  apiPost(GAS_B,{action:'confirm_order',id});
 }
 
 async function deleteOrder(id){
@@ -2057,13 +2130,18 @@ async function saveExpense(){
     holder:div.querySelector('.exp-holder')?.value||'',
   }));
   if(!items.length){alert('항목을 1개 이상 추가해주세요.');return;}
-  await apiPost(GAS_B,{
-    action:'save_expense',id:_editId||'',items,
-    memo:document.getElementById('exp-memo').value,
-    status:'완료'
-  });
+  const memo=document.getElementById('exp-memo').value;
+  const id=_editId||('EXP-'+Date.now());
+
+  // Optimistic update
+  const updated={code:_user.code,id,createdAt:new Date().toISOString().slice(0,10),drafter:_user.name,status:'완료'};
+  if(_editId){const idx=_expenses.findIndex(e=>e.id===_editId);if(idx>=0)_expenses[idx]={..._expenses[idx],...updated};else _expenses.unshift(updated);}
+  else _expenses.unshift(updated);
   closeModal('expense-modal');
-  await loadExpenses();
+  renderExpenses();
+
+  apiPost(GAS_B,{action:'save_expense',id:_editId||'',items,memo,status:'완료'});
+  if(!_editId) setTimeout(()=>loadExpenses(),3000);
 }
 
 async function viewExpense(id){
@@ -2112,6 +2190,8 @@ async function deleteExpense(id){
 //  반환금처리대장
 // ════════════════════════════════
 let _refunds=[];
+let _refundEditId = null;
+
 async function loadRefunds(){
   const res=await apiGet(GAS_B,{action:'list_refunds'});
   if(res?.ok) _refunds=res.refunds||[];
@@ -2138,7 +2218,7 @@ function renderRefunds(){
 }
 
 function openRefundModal(id=null){
-  _editId=id;
+  _refundEditId=id;
   document.getElementById('ref-drafter').value=_user.name;
   document.getElementById('ref-date').value=todayStr();
   const wrap=document.getElementById('ref-items-wrap');
@@ -2194,9 +2274,17 @@ async function saveRefund(){
     note:div.querySelector('.ref-note')?.value||'',
   }));
   if(!items.length){alert('항목을 1개 이상 추가해주세요.');return;}
-  await apiPost(GAS_B,{action:'save_refund',id:_editId||'',items,status:'완료'});
+  const id=_refundEditId||('REF-'+Date.now());
+
+  // Optimistic update
+  const updated={code:_user.code,id,createdAt:new Date().toISOString().slice(0,10),drafter:_user.name,status:'완료'};
+  if(_refundEditId){const idx=_refunds.findIndex(r=>r.id===_refundEditId);if(idx>=0)_refunds[idx]={..._refunds[idx],...updated};else _refunds.unshift(updated);}
+  else _refunds.unshift(updated);
   closeModal('refund-modal');
-  await loadRefunds();
+  renderRefunds();
+
+  apiPost(GAS_B,{action:'save_refund',id:_refundEditId||'',items,status:'완료'});
+  if(!_refundEditId) setTimeout(()=>loadRefunds(),3000);
 }
 
 async function viewRefund(id){
