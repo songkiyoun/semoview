@@ -1150,8 +1150,13 @@ async function apiFetch(base, params, method='GET', body=null, needResponse=fals
 }
 
 // GET: code+secret+grade를 직접 파라미터로 전달 (토큰 URL 인코딩 문제 우회)
+// 기존 params의 code는 덮어쓰지 않음 (로그인 시 사용자 입력 code 유지)
 async function apiGet(gas, params){
-  return await apiFetch(gas, {...params, code:_user?.code, grade:_user?.grade, secret:TOKEN_SECRET});
+  const extra = {};
+  if(!params.code)   extra.code   = _user?.code;
+  if(!params.grade)  extra.grade  = _user?.grade;
+  if(!params.secret) extra.secret = TOKEN_SECRET;
+  return await apiFetch(gas, {...params, ...extra});
 }
 async function apiPost(gas, body){ return await apiFetch(gas, null, 'POST', {...body, token:_user?.token}); }
 async function apiPostVerified(gas, body){
@@ -1186,7 +1191,7 @@ async function doLogin(){
   btn.disabled=true; btn.textContent='로그인 중…'; errEl.textContent='';
 
   // GET 방식으로 로그인 (프록시 호환성 확보)
-  const res = await apiGet(GAS_A, {action:'login', code, pw});
+  const res = await apiGet(GAS_A, {action:'login', code, pw, secret:TOKEN_SECRET});
   if(res?.ok && res.token){
     const user = decodeToken(res.token) || res.user;
     if(!user){errEl.textContent='토큰 오류. 다시 시도해주세요.';btn.disabled=false;btn.textContent='로그인';return;}
