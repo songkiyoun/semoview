@@ -354,7 +354,31 @@ a{color:inherit;text-decoration:none}
 }
 .add-item-btn:hover{border-color:var(--gold);color:var(--gold)}
 
-/* ── 반응형 */
+/* ── 블로그 관리대행 */
+.client-card{background:var(--s);border:1px solid var(--b);border-radius:var(--r);overflow:hidden;transition:border-color .18s;cursor:pointer;margin-bottom:8px}
+.client-card:hover{border-color:rgba(201,169,110,.4)}
+.client-card.active{border-color:rgba(201,169,110,.4)}
+.client-head{display:flex;align-items:center;gap:12px;padding:13px 15px}
+.client-status{font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;flex-shrink:0}
+.client-status.on{background:rgba(95,207,133,.15);color:var(--green);border:1px solid rgba(95,207,133,.3)}
+.client-status.stop{background:rgba(232,146,58,.15);color:var(--orange);border:1px solid rgba(232,146,58,.3)}
+.client-status.end{background:var(--s);color:var(--dim);border:1px solid var(--b)}
+.client-name{font-size:15px;font-weight:700;color:#fff}
+.client-meta{font-size:12px;color:var(--dim);margin-top:2px}
+.client-right{text-align:right;flex-shrink:0}
+.client-detail{border-top:1px solid var(--b);padding:14px 15px;display:none;animation:up .2s ease}
+.client-card.active .client-detail{display:block}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.detail-item{background:rgba(255,255,255,.03);border-radius:8px;padding:10px 12px}
+.detail-label{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;font-weight:700}
+.detail-val{font-size:14px;font-weight:600;color:#fff}
+.timeline-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.tl-item{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;font-size:13px}
+.tl-date{font-size:11px;color:var(--gold);font-weight:700;min-width:68px;flex-shrink:0;margin-top:1px}
+.tl-status{font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;flex-shrink:0;margin-top:2px}
+.tl-status.before{background:rgba(201,169,110,.12);color:var(--gold);border:1px solid rgba(201,169,110,.3)}
+.tl-status.done{background:rgba(95,207,133,.12);color:var(--green);border:1px solid rgba(95,207,133,.25)}
+.tl-status.overdue{background:rgba(224,85,85,.12);color:var(--red);border:1px solid rgba(224,85,85,.25)}
 @media(max-width:700px){
   :root{--sb:200px}
   .form-row{grid-template-columns:1fr}
@@ -3370,64 +3394,229 @@ function renderDaigeo(csvs){
 }
 
 // ════════════════════════════════
-//  5. 블로그 관리대행
+//  블로그 관리대행 (신규 시트 구조)
 // ════════════════════════════════
+const SH_BLOG_NEW = {
+  contract: {id:'15jBLPGRJr8WzTuHMMKYWyTniOBB0wkL7QqVET16G1CY', gid:'1533269847'},
+  logs: [
+    {name:'김선옥', id:'15jBLPGRJr8WzTuHMMKYWyTniOBB0wkL7QqVET16G1CY', gid:'785365965'},
+    {name:'정규남', id:'15jBLPGRJr8WzTuHMMKYWyTniOBB0wkL7QqVET16G1CY', gid:'1190640820'},
+  ]
+};
+
+let _blogClients=[], _blogLogs=[], _blogActiveClient=null;
+
 async function loadBlog(){
   const body=document.getElementById('blog-body');
   if(!body) return;
-  body.innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
+  body.innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">블로그 데이터 불러오는 중…</div></div>';
   try{
-    const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_BLOG.id}/export?format=csv&gid=${SH_BLOG.gid}`);
-    renderBlog(csv);
+    // 계약정보 + Log 탭들 동시 로드
+    const [contractCsv, ...logCsvs] = await Promise.all([
+      proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_BLOG_NEW.contract.id}/export?format=csv&gid=${SH_BLOG_NEW.contract.gid}`),
+      ...SH_BLOG_NEW.logs.map(l=>proxyFetch(`https://docs.google.com/spreadsheets/d/${l.id}/export?format=csv&gid=${l.gid}`).catch(()=>null))
+    ]);
+    _blogClients = parseBlogContracts(contractCsv);
+    _blogLogs    = parseAllBlogLogs(logCsvs);
+    _blogActiveClient = null;
+    renderBlogList();
   }catch(e){
     body.innerHTML='<div class="empty">블로그 시트를 불러오지 못했습니다.<br>시트 링크 공유(뷰어) 설정을 확인해주세요.</div>';
   }
 }
 
-function renderBlog(csv){
-  const body=document.getElementById('blog-body');
+// 계약정보 탭 파싱
+// A[0]=진행여부 B[1]=계약일자 C[2]=계약월 D[3]=계약자명 E[4]=계약기간 F[5]=월발행횟수
+// L[11]=진행개월수 M[12]=현발행개수 N[13]=마지막포스팅 O[14]=월입금액 P[15]=총결제금액 Q[16]=결제일
+function parseBlogContracts(csv){
   const rows=csvParse(csv);
-  // 헤더: A=조합명, B=영업담당, C=월계약건, D=누적발행, E=잔여
   const clients=[];
   for(let i=1;i<rows.length;i++){
     const r=rows[i]||[];
-    const name=(r[0]||'').trim();
+    const name=(r[3]||'').trim();
     if(!name) continue;
-    const mgr=(r[1]||'').trim();
-    const monthly=parseInt((r[2]||'0').replace(/[^\d]/g,''))||0;
-    const done=parseInt((r[3]||'0').replace(/[^\d]/g,''))||0;
-    const remain=parseInt((r[4]||'0').replace(/[^\d-]/g,''))||0;
-    clients.push({name,mgr,monthly,done,remain});
+    clients.push({
+      status:     (r[0]||'').trim(),
+      contractDate:(r[1]||'').trim(),
+      contractMonth:(r[2]||'').trim(),
+      name,
+      period:     (r[4]||'').trim(),
+      monthlyPosts:(r[5]||'').trim(),
+      months:     (r[11]||'').trim(),
+      published:  (r[12]||'').trim(),
+      lastPost:   (r[13]||'').trim(),
+      monthlyFee: (r[14]||'').trim(),
+      totalPaid:  (r[15]||'').trim(),
+      payDay:     (r[16]||'').trim(),
+    });
   }
-  if(!clients.length){body.innerHTML='<div class="empty">클라이언트 데이터가 없습니다.</div>';return;}
+  return clients;
+}
 
-  const byMgr={};
-  clients.forEach(c=>{const m=c.mgr||'미지정';if(!byMgr[m])byMgr[m]=[];byMgr[m].push(c);});
+// Log 탭들 파싱
+// A[0]=연도 B[1]=날짜 C[2]=고객명 D[3]=카테고리 E[4]=상태 F[5]=회차 G[6]=금액 H[7]=계산서발행 I[8]=주제 J[9]=링크
+function parseAllBlogLogs(csvs){
+  const all=[];
+  csvs.forEach((csv,idx)=>{
+    if(!csv) return;
+    const rows=csvParse(csv);
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i]||[];
+      const dateRaw=(r[1]||'').trim();
+      if(!dateRaw) continue;
+      const date=parseKorDate(dateRaw);
+      if(!date) continue;
+      const clientName=(r[2]||'').trim();
+      if(!clientName) continue;
+      all.push({
+        date,
+        clientName,
+        category:(r[3]||'').trim(),  // 블로그_발행, 결제 등
+        status:  (r[4]||'').trim(),  // 발행전, 완료, 입금전, 입금완료
+        round:   (r[5]||'').trim(),
+        amount:  (r[6]||'').trim(),
+        topic:   (r[8]||'').trim(),
+        link:    (r[9]||'').trim(),
+      });
+    }
+  });
+  return all;
+}
 
-  let html=`<div class="kpi-grid">
-    <div class="kpi-card"><div class="kpi-label">총 클라이언트</div><div class="kpi-val">${clients.length}</div></div>
-    <div class="kpi-card"><div class="kpi-label">월 총 계약건</div><div class="kpi-val">${clients.reduce((s,c)=>s+c.monthly,0)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">잔여건수</div><div class="kpi-val warn">${clients.reduce((s,c)=>s+Math.max(0,c.remain),0)}</div></div>
+function parseKorDate(s){
+  if(!s) return null;
+  let m=s.match(/(\d{4})년\s*(\d{1,2})\s*월?\s*(\d{1,2})/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+  m=s.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+  m=s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+  m=s.match(/(\d{1,2})\/(\d{1,2})/);
+  if(m){ const n=new Date();return new Date(n.getFullYear(),+m[1]-1,+m[2]);}
+  return null;
+}
+
+function fmtMoney(s){
+  const n=parseInt((s||'').replace(/[^\d]/g,''));
+  return n&&!isNaN(n)?n.toLocaleString()+'원':'-';
+}
+
+function renderBlogList(){
+  const body=document.getElementById('blog-body');
+  if(!body) return;
+  const today=todayD();
+  const active=_blogClients.filter(c=>(c.status||'').includes('진행'));
+  const overdueLogs=_blogLogs.filter(t=>
+    t.status==='발행전' && !t.category?.includes('결제') && daysDiff(t.date,today)<=0
+  );
+
+  let html=`<div class="kpi-grid" style="margin-bottom:12px">
+    <div class="kpi-card"><div class="kpi-label">진행중</div><div class="kpi-val ok">${active.length}명</div></div>
+    <div class="kpi-card"><div class="kpi-label">발행 지연</div><div class="kpi-val ${overdueLogs.length?'warn':'ok'}">${overdueLogs.length}건</div></div>
+    <div class="kpi-card"><div class="kpi-label">누적 발행</div><div class="kpi-val">${_blogClients.reduce((s,c)=>s+parseInt(c.published||0),0)}건</div></div>
   </div>`;
 
-  Object.entries(byMgr).forEach(([m,cs])=>{
-    html+=`<div class="card" style="margin-bottom:10px"><div class="card-title">👤 ${esc(m)} (${cs.length}명)</div>`;
-    cs.forEach(c=>{
-      const pct=c.monthly?Math.round(c.done/c.monthly*100):0;
-      html+=`<div class="list-item">
-        <div class="list-main">
-          <div class="list-title">${esc(c.name)}</div>
-          <div class="list-sub">월 ${c.monthly}건 · 발행 ${c.done}건 · 잔여 ${Math.max(0,c.remain)}건</div>
-          <div style="height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:6px;overflow:hidden">
-            <div style="height:100%;background:${pct>=100?'var(--green)':pct>=50?'var(--orange)':'var(--red)'};width:${Math.min(pct,100)}%"></div>
-          </div>
-        </div>
-        <span class="tag ${pct>=100?'tag-g':c.remain>0?'tag-o':'tag-dim'}">${pct}%</span>
+  const order={'진행중':0,'진행':0,'중지':1,'종료':2};
+  const sorted=[..._blogClients].sort((a,b)=>(order[(a.status||'').trim()]??9)-(order[(b.status||'').trim()]??9));
+
+  sorted.forEach(c=>{
+    const isActive=_blogActiveClient===c.name;
+    const cLogs=_blogLogs.filter(t=>t.clientName===c.name);
+    const overdueItems=cLogs.filter(t=>t.status==='발행전'&&!t.category?.includes('결제')&&daysDiff(t.date,today)<=0);
+    const upcoming=cLogs.filter(t=>t.status==='발행전'&&!t.category?.includes('결제')&&daysDiff(t.date,today)>0).slice(0,5);
+    const recentDone=cLogs.filter(t=>t.status==='완료'&&!t.category?.includes('결제')).sort((a,b)=>b.date-a.date).slice(0,3);
+
+    const statusClass=c.status?.includes('진행')?'on':c.status==='중지'?'stop':'end';
+
+    let detail=`<div class="client-detail">
+      <div class="detail-grid">
+        <div class="detail-item"><div class="detail-label">계약기간</div><div class="detail-val">${esc(c.period||'-')}</div></div>
+        <div class="detail-item"><div class="detail-label">월 발행횟수</div><div class="detail-val">${esc(c.monthlyPosts||'-')}</div></div>
+        <div class="detail-item"><div class="detail-label">진행 개월</div><div class="detail-val">${esc(c.months||'-')}개월</div></div>
+        <div class="detail-item"><div class="detail-label">누적 발행</div><div class="detail-val">${esc(c.published||'-')}건</div></div>
+        <div class="detail-item"><div class="detail-label">월 입금액</div><div class="detail-val">${fmtMoney(c.monthlyFee)}</div></div>
+        <div class="detail-item"><div class="detail-label">총 결제금액</div><div class="detail-val">${fmtMoney(c.totalPaid)}</div></div>
+        <div class="detail-item" style="grid-column:1/-1"><div class="detail-label">결제일</div><div class="detail-val" style="font-size:13px">${esc(c.payDay||'-')}</div></div>
+        ${c.lastPost?`<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">마지막 포스팅</div><div class="detail-val" style="font-size:13px">${esc(c.lastPost)}</div></div>`:''}
       </div>`;
-    });
-    html+=`</div>`;
+
+    if(overdueItems.length){
+      detail+=`<div style="margin-bottom:10px"><div class="detail-label" style="color:var(--red);margin-bottom:6px">⚠ 발행 지연 ${overdueItems.length}건</div>
+        <div class="timeline-list">`;
+      overdueItems.forEach(t=>{
+        const d=Math.abs(daysDiff(t.date,today));
+        detail+=`<div class="tl-item">
+          <div class="tl-date">${t.date.toLocaleDateString('ko-KR',{month:'short',day:'numeric'})}</div>
+          <span class="tl-status overdue">D+${d}일</span>
+          <div style="flex:1;color:var(--mid);min-width:0">
+            ${esc(t.topic||t.round||'내용 미정')}
+            ${t.link?`<a href="${esc(t.link)}" target="_blank" style="color:var(--gold);font-size:11px;margin-left:6px">↗링크</a>`:''}
+          </div>
+        </div>`;
+      });
+      detail+=`</div></div>`;
+    }
+
+    if(upcoming.length){
+      detail+=`<div style="margin-bottom:10px"><div class="detail-label" style="margin-bottom:6px">📅 예정 발행 (${upcoming.length}건)</div>
+        <div class="timeline-list">`;
+      upcoming.forEach(t=>{
+        const d=daysDiff(t.date,today);
+        const lbl=d===1?'내일':`D-${d}일`;
+        detail+=`<div class="tl-item">
+          <div class="tl-date">${t.date.toLocaleDateString('ko-KR',{month:'short',day:'numeric'})}</div>
+          <span class="tl-status before">${lbl}</span>
+          <div style="flex:1;color:var(--mid);min-width:0">${esc(t.topic||t.round||'내용 미정')}</div>
+        </div>`;
+      });
+      detail+=`</div></div>`;
+    }
+
+    if(recentDone.length){
+      detail+=`<div><div class="detail-label" style="margin-bottom:6px">✅ 최근 완료 (${recentDone.length}건)</div>
+        <div class="timeline-list">`;
+      recentDone.forEach(t=>{
+        detail+=`<div class="tl-item">
+          <div class="tl-date">${t.date.toLocaleDateString('ko-KR',{month:'short',day:'numeric'})}</div>
+          <span class="tl-status done">완료</span>
+          <div style="flex:1;color:var(--mid);min-width:0">
+            ${esc(t.topic||t.round||'—')}
+            ${t.link?`<a href="${esc(t.link)}" target="_blank" style="color:var(--gold);font-size:11px;margin-left:6px">↗링크</a>`:''}
+          </div>
+        </div>`;
+      });
+      detail+=`</div></div>`;
+    }
+
+    if(!overdueItems.length&&!upcoming.length&&!recentDone.length){
+      detail+=`<div style="font-size:13px;color:var(--dim);padding:4px 0">발행 데이터가 없습니다.</div>`;
+    }
+    detail+=`</div>`;
+
+    html+=`<div class="client-card ${isActive?'active':''}" onclick="toggleBlogClient('${c.name.replace(/'/g,"\\'")}')">
+      <div class="client-head">
+        <span class="client-status ${statusClass}">${esc(c.status||'-')}</span>
+        <div style="flex:1;min-width:0">
+          <div class="client-name">${esc(c.name)}</div>
+          <div class="client-meta">${c.monthlyPosts||''} · 발행 ${c.published||0}건${c.lastPost?' · 최근 '+esc(c.lastPost):''}</div>
+        </div>
+        <div class="client-right">
+          <div style="font-size:12px;color:${overdueItems.length?'var(--red)':'var(--dim)'}">
+            ${overdueItems.length?`⚠ ${overdueItems.length}건 지연`:upcoming.length?`예정 ${upcoming.length}건`:''}
+          </div>
+          <div style="font-size:12px;color:var(--dim);margin-top:2px">${isActive?'▲':'▼'}</div>
+        </div>
+      </div>
+      ${detail}
+    </div>`;
   });
+
   body.innerHTML=html;
+}
+
+function toggleBlogClient(name){
+  _blogActiveClient = _blogActiveClient===name ? null : name;
+  renderBlogList();
 }
 
 // ════════════════════════════════
