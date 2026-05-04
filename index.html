@@ -585,6 +585,42 @@ a{color:inherit;text-decoration:none}
     </div>
   </div>
 
+  <!-- 🚛 에이아이무빙 -->
+  <div class="page" id="page-aimoving">
+    <div class="page-header">
+      <div><div class="page-title">🚛 에이아이무빙</div><div class="page-sub">견적 · 계약 · 매출 현황</div></div>
+      <div class="page-actions"><button class="btn btn-ghost btn-sm" onclick="loadAimoving()">↺ 새로고침</button></div>
+    </div>
+    <div class="page-body" id="aimoving-body"><div class="spin-wrap"><div class="spin"></div></div></div>
+  </div>
+
+  <!-- 📝 블로그 관리대행 -->
+  <div class="page" id="page-blog">
+    <div class="page-header">
+      <div><div class="page-title">📝 블로그 관리대행</div><div class="page-sub">클라이언트 현황</div></div>
+      <div class="page-actions"><button class="btn btn-ghost btn-sm" onclick="loadBlog()">↺ 새로고침</button></div>
+    </div>
+    <div class="page-body" id="blog-body"><div class="spin-wrap"><div class="spin"></div></div></div>
+  </div>
+
+  <!-- 🤝 협찬 포스팅 -->
+  <div class="page" id="page-sponsor">
+    <div class="page-header">
+      <div><div class="page-title">🤝 협찬 포스팅</div><div class="page-sub">마감 관리 · 진행 현황</div></div>
+      <div class="page-actions"><button class="btn btn-gold btn-sm" onclick="openSponsorModal()">+ 추가</button></div>
+    </div>
+    <div class="page-body" id="sponsor-body"><div class="spin-wrap"><div class="spin"></div></div></div>
+  </div>
+
+  <!-- 📊 다이겨 매출현황 -->
+  <div class="page" id="page-daigeo">
+    <div class="page-header">
+      <div><div class="page-title">📊 다이겨 매출현황</div><div class="page-sub">9개 서비스 통합</div></div>
+      <div class="page-actions"><button class="btn btn-ghost btn-sm" onclick="loadDaigeo()">↺ 새로고침</button></div>
+    </div>
+    <div class="page-body" id="daigeo-body"><div class="spin-wrap"><div class="spin"></div></div></div>
+  </div>
+
   <!-- 📢 공지 작성 (관리자) -->
   <div class="page" id="page-notice-admin">
     <div class="page-header">
@@ -1191,6 +1227,7 @@ function buildSidebar(grade){
     ${item('jolgimun','📩','절기문자',"nav('jolgimun',this)")}
     ${isAdmin ? item('blog','📝','블로그 관리대행',"nav('blog',this)") : ''}
     ${isAdmin ? item('sponsor','🤝','협찬 포스팅',"nav('sponsor',this)") : ''}
+    ${isAdmin ? item('aimoving','🚛','에이아이무빙',"nav('aimoving',this)") : ''}
     ${isMgr   ? item('daigeo','📊','다이겨 매출현황',"nav('daigeo',this)") : ''}
   </div>
   <div class="sb-divider"></div>
@@ -1302,7 +1339,11 @@ function nav(id, el=null){
     if(sb) sb.classList.add('on');
   }
   // 페이지별 로드 (캐시 먼저 렌더 → 백그라운드 최신화)
-  if(id==='home')        loadHome();
+  if(id==='jolgimun')   { loadJolgimun(); }
+  if(id==='aimoving')   { loadAimoving(); }
+  if(id==='blog')       { loadBlog(); }
+  if(id==='sponsor')    { loadSponsors(); }
+  if(id==='daigeo')     { loadDaigeo(); }
   if(id==='calendar')    { renderCalendar(); loadEvents(); }
   if(id==='schedule')    { renderSchedule(); loadEvents(); }
   if(id==='todo')        { renderTodos(); loadTodos(); }
@@ -2849,11 +2890,718 @@ async function loadProfile(){
 }
 
 // ════════════════════════════════
-//  출력 함수 (stub)
+//  공통 헬퍼 (CSV·프록시·날짜)
 // ════════════════════════════════
-function printExpense(){ alert('출력 기능 준비 중'); }
-function printExpenseById(id){ alert('출력 기능 준비 중'); }
-function printRefund(){ alert('출력 기능 준비 중'); }
+const SH_JOLGI   = {id:'1DFG4bhJdpWl9a_4K2a4xlekgoUso3aDwEZRi2BeCPYA'};
+const SH_DAIGEO  = {id:'1qA8oxCCe0QVQhCsXm-nsbjJSx0tRCLPvWEhDenBfOWU'};
+const SH_AIMOVING= {id:'1Do3aDmmrXoNYj2trcjumRRGNCOy3jXKZiqiiB9M-YN0'};
+const SH_BLOG    = {id:'15jBLPGRJr8WzTuHMMKYWyTniOBB0wkL7QqVET16G1CY', gid:'1533269847'};
+
+async function proxyFetch(url, ms=12000){
+  const proxies=[
+    u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  ];
+  for(const p of proxies){
+    try{
+      const r=await fetch(p(url),{signal:AbortSignal.timeout(ms)});
+      if(!r.ok) continue;
+      const txt=await r.text();
+      if(txt&&txt.length>50) return txt;
+    }catch(_){}
+  }
+  throw new Error('fetch 실패: '+url);
+}
+
+function csvParse(txt){
+  if(!txt) return [];
+  const rows=[];
+  let cur=[],cell='',inQ=false;
+  for(let i=0;i<txt.length;i++){
+    const c=txt[i];
+    if(inQ){
+      if(c==='"'&&txt[i+1]==='"'){cell+='"';i++;}
+      else if(c==='"') inQ=false;
+      else cell+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===','){cur.push(cell);cell='';}
+      else if(c==='\n'||c==='\r'){
+        cur.push(cell);cell='';
+        if(cur.some(v=>v!='')) rows.push(cur);
+        cur=[];
+        if(c==='\r'&&txt[i+1]==='\n') i++;
+      } else cell+=c;
+    }
+  }
+  if(cell||cur.length) cur.push(cell),rows.push(cur);
+  return rows;
+}
+
+function todayD(){ const n=new Date();n.setHours(0,0,0,0);return n; }
+function daysDiff(target,from){ return Math.round((target-from)/(1000*60*60*24)); }
+function fmtKRW(n){
+  n=Number(n)||0;
+  if(n<0) return '-'+fmtKRW(-n);
+  if(n>=100000000) return (n/100000000).toFixed(1).replace(/\.0$/,'')+'억';
+  if(n>=10000) return Math.round(n/10000)+'만';
+  return n.toLocaleString();
+}
+
+// ════════════════════════════════
+//  1. 에이아이무빙
+// ════════════════════════════════
+async function loadAimoving(){
+  const body=document.getElementById('aimoving-body');
+  body.innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
+  try{
+    const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_AIMOVING.id}/export?format=csv&gid=0`);
+    renderAimoving(csv);
+  }catch(e){
+    body.innerHTML='<div class="empty">에이아이무빙 시트를 불러오지 못했습니다.<br>시트 공유 설정(링크 공유 → 뷰어)을 확인해주세요.</div>';
+  }
+}
+
+function renderAimoving(csv){
+  const body=document.getElementById('aimoving-body');
+  const rows=csvParse(csv);
+  const items=[];
+  for(let i=5;i<rows.length;i++){
+    const r=rows[i];
+    if(!r[0]||!r[0].trim()||!r[4]||!r[4].trim()) continue;
+    const status=(r[3]||'').trim();
+    if(!status) continue;
+    const paid=parseInt((r[19]||'0').replace(/[^\d]/g,''))||0;
+    const profit=parseInt((r[27]||'0').replace(/[^\d-]/g,''))||0;
+    const bonus=parseInt((r[28]||'0').replace(/[^\d-]/g,''))||0;
+    items.push({
+      id:r[0],status,client:(r[4]||'').trim(),item:(r[5]||'').trim(),
+      media:(r[6]||'').trim(),type:(r[7]||'').trim(),count:(r[8]||'').trim(),
+      deadline:(r[11]||'').trim(),paid,profit,bonus,manager:(r[23]||'').trim()
+    });
+  }
+  const statusCount=st=>items.filter(i=>i.status===st).length;
+  const active=items.filter(i=>['대기중','예약중','진행중'].includes(i.status));
+  const excluded=['중지','견적발송'];
+  const byMgr={};
+  items.filter(i=>!excluded.includes(i.status)&&i.manager).forEach(i=>{
+    const m=i.manager;
+    if(!byMgr[m])byMgr[m]={paid:0,bonus:0,count:0};
+    byMgr[m].paid+=i.paid;byMgr[m].bonus+=i.bonus;byMgr[m].count++;
+  });
+
+  let html=`<div class="kpi-grid">
+    ${['전체','견적발송','대기중','예약중','진행중'].map(s=>`
+    <div class="kpi-card"><div class="kpi-label">${s}</div><div class="kpi-val">${s==='전체'?items.length:statusCount(s)}</div></div>`).join('')}
+    <div class="kpi-card"><div class="kpi-label">중지&종료</div><div class="kpi-val" style="color:var(--dim)">${items.filter(i=>i.status==='중지'||i.status==='종료').length}</div></div>
+  </div>`;
+
+  html+=`<div class="card"><div class="card-title">👤 영업담당 실적</div>`;
+  Object.entries(byMgr).sort((a,b)=>b[1].paid-a[1].paid).forEach(([m,v])=>{
+    html+=`<div class="list-item">
+      <div class="list-main"><div class="list-title">${esc(m)} <span class="tag tag-b">${v.count}건</span></div>
+      <div class="list-sub">영업수당 ${v.bonus.toLocaleString()}원</div></div>
+      <div style="font-size:15px;font-weight:700;color:var(--gold)">${fmtKRW(v.paid)}</div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  if(active.length){
+    html+=`<div class="card"><div class="card-title">📋 진행 현황 (${active.length}건)</div>`;
+    const tc={'대기중':'tag-gold','예약중':'tag-g','진행중':'tag-b'};
+    active.forEach(i=>{
+      html+=`<div class="list-item">
+        <div class="list-main">
+          <div class="list-title">${esc(i.client)} <span class="tag ${tc[i.status]||'tag-dim'}">${i.status}</span></div>
+          <div class="list-sub">${esc(i.item)} · ${esc(i.media)||'—'} · 마감 ${esc(i.deadline)||'미정'} · 담당: ${esc(i.manager)||'—'}</div>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:#fff">${i.paid?i.paid.toLocaleString()+'원':'—'}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  body.innerHTML=html;
+}
+
+// ════════════════════════════════
+//  2. 절기문자
+// ════════════════════════════════
+async function loadJolgimun(){
+  const body=document.getElementById('jolgimun-body');
+  if(!body) return;
+  body.innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">절기문자 시트 불러오는 중…</div></div>';
+  try{
+    const urls=[
+      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=0`,
+      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv`,
+      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/gviz/tq?tqx=out:csv`,
+    ];
+    let csv=null;
+    for(const u of urls){
+      try{ const t=await proxyFetch(u,15000); if(t&&t.length>100){csv=t;break;} }catch(_){}
+    }
+    if(!csv) throw new Error('로드 실패');
+    renderJolgimun(csv,body);
+  }catch(e){
+    body.innerHTML='<div class="empty">절기문자 시트를 불러오지 못했습니다.<br>시트 링크 공유(뷰어) 설정을 확인해주세요.</div>';
+  }
+}
+
+function renderJolgimun(csv, body){
+  const rows=csvParse(csv);
+  const today=todayD();
+
+  // 날짜 행 탐색
+  let DATE_ROW=-1,DATE_COL_START=-1;
+  for(let ri=0;ri<Math.min(30,rows.length);ri++){
+    const r=rows[ri]||[];
+    let cnt=0,firstCol=-1;
+    for(let ci=0;ci<r.length;ci++){
+      if(/\d{4}-\d{2}-\d{2}/.test((r[ci]||'').trim())){cnt++;if(firstCol<0)firstCol=ci;if(cnt>=3)break;}
+    }
+    if(cnt>=3){DATE_ROW=ri;DATE_COL_START=firstCol;break;}
+  }
+  if(DATE_ROW<0){body.innerHTML='<div class="empty">시트 구조를 인식하지 못했습니다.</div>';return;}
+
+  const NAME_ROW=DATE_ROW+2,DATA_START=DATE_ROW+4;
+  const clients=[];
+  for(let i=DATA_START;i<rows.length;i++){
+    const r=rows[i]||[];
+    const manager=(r[1]||'').trim(),name=(r[2]||'').trim();
+    if(!name||!manager||manager==='영업 담당'||manager==='영업담당') continue;
+    const txtTotal=parseInt((r[3]||'0').replace(/[^\d]/g,''))||0;
+    const txtRemain=parseInt((r[5]||'0').replace(/[^\d-]/g,''))||0;
+    const carTotal=parseInt((r[6]||'0').replace(/[^\d]/g,''))||0;
+    const carRemain=parseInt((r[8]||'0').replace(/[^\d-]/g,''))||0;
+    if(!txtTotal&&!carTotal) continue;
+    clients.push({manager,name,txtTotal,txtRemain,carTotal,carRemain});
+  }
+
+  const jolgiDates=[];
+  const dateRow=rows[DATE_ROW]||[],nameRow=rows[NAME_ROW]||[];
+  for(let col=DATE_COL_START;col<dateRow.length;col++){
+    const dateStr=(dateRow[col]||'').trim();
+    const jolgiName=(nameRow[col]||'').trim();
+    if(!dateStr) continue;
+    const dm=dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if(!dm) continue;
+    const dateObj=new Date(+dm[1],+dm[2]-1,+dm[3]);
+    let ready=0,confirm=0,done=0;
+    for(let row=DATA_START;row<rows.length;row++){
+      const val=(rows[row]?.[col]||'').trim();
+      if(!val||val==='0') continue;
+      if(val.includes('_예정'))ready++;
+      else if(val.includes('_컨펌중'))confirm++;
+      else if(val.includes('_완'))done++;
+    }
+    const total=ready+confirm+done;
+    if(!total) continue;
+    jolgiDates.push({dateStr,dateObj,name:jolgiName||dateStr,total,ready,confirm,done});
+  }
+  jolgiDates.sort((a,b)=>a.dateObj-b.dateObj);
+
+  const activeClients=clients.filter(c=>c.txtRemain>0||c.carRemain>0);
+  const thisM=today.getMonth(),thisY=today.getFullYear();
+  const thisMonthJolgi=jolgiDates.filter(j=>j.dateObj.getFullYear()===thisY&&j.dateObj.getMonth()===thisM);
+  const thisMonthDone=thisMonthJolgi.reduce((s,j)=>s+j.done,0);
+  const thisMonthTotal=thisMonthJolgi.reduce((s,j)=>s+j.total,0);
+
+  let html=`<div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">총 클라이언트</div><div class="kpi-val">${clients.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">진행중</div><div class="kpi-val ok">${activeClients.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">이번달 완료율</div><div class="kpi-val">${thisMonthTotal?Math.round(thisMonthDone/thisMonthTotal*100)+'%':'—'}</div><div class="kpi-sub">${thisMonthDone}/${thisMonthTotal}건</div></div>
+  </div>`;
+
+  // 영업담당 드릴다운
+  const byMgr={};
+  clients.forEach(c=>{const m=c.manager||'미지정';if(!byMgr[m])byMgr[m]=[];byMgr[m].push(c);});
+  html+=`<div class="card" style="margin-bottom:12px"><div class="card-title">👤 영업담당자</div>`;
+  Object.entries(byMgr).forEach(([m,cs])=>{
+    const active=cs.filter(c=>c.txtRemain>0||c.carRemain>0);
+    html+=`<div class="list-item">
+      <div class="list-main"><div class="list-title">${esc(m)}</div>
+      <div class="list-sub">진행 ${active.length}명 / 전체 ${cs.length}명</div></div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  // 절기 발송 현황
+  html+=`<div class="card"><div class="card-title">📨 절기 발송 현황</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button class="btn btn-ghost btn-sm" id="jft-all" onclick="jolgiFilter('all')">전체</button>
+      <button class="btn btn-ghost btn-sm" id="jft-this" onclick="jolgiFilter('this')">이번달</button>
+      <button class="btn btn-ghost btn-sm" id="jft-next" onclick="jolgiFilter('next')">다음달</button>
+    </div>
+    <div id="jolgi-list"></div></div>`;
+
+  body.innerHTML=html;
+  window._jolgiDates=jolgiDates;window._jolgiToday=today;
+  jolgiFilter('all');
+}
+
+function jolgiFilter(mode){
+  const today=window._jolgiToday||todayD();
+  const all=window._jolgiDates||[];
+  const thisM=today.getMonth(),thisY=today.getFullYear();
+  const nextM=(thisM+1)%12,nextY=thisM===11?thisY+1:thisY;
+  ['all','this','next'].forEach(k=>{
+    const el=document.getElementById('jft-'+k);
+    if(el){el.className='btn btn-sm '+(k===mode?'btn-gold':'btn-ghost');}
+  });
+  let filtered=all;
+  if(mode==='this') filtered=all.filter(j=>j.dateObj.getFullYear()===thisY&&j.dateObj.getMonth()===thisM);
+  else if(mode==='next') filtered=all.filter(j=>j.dateObj.getFullYear()===nextY&&j.dateObj.getMonth()===nextM);
+  const el=document.getElementById('jolgi-list');
+  if(!el) return;
+  if(!filtered.length){el.innerHTML='<div class="empty">해당 기간 절기 없음</div>';return;}
+  el.innerHTML=filtered.map(j=>{
+    const d=daysDiff(j.dateObj,today);
+    const isPast=d<0,isUrgent=!isPast&&d<=2,isSoon=!isPast&&d<=7;
+    const ddayTxt=d===0?'오늘':isPast?`D+${Math.abs(d)}`:d===1?'내일':`D-${d}`;
+    const color=isPast?'var(--dim)':isUrgent?'var(--red)':isSoon?'var(--orange)':'var(--green)';
+    const pct=j.total?Math.round(j.done/j.total*100):0;
+    return `<div style="border:1px solid ${isPast?'var(--b)':isUrgent?'rgba(224,85,85,.4)':'var(--b)'};border-radius:9px;padding:12px 14px;margin-bottom:8px${isPast?';opacity:.6':''}">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="font-size:16px;font-weight:700;color:${color};min-width:44px;text-align:center">${ddayTxt}</div>
+        <div style="flex:1">
+          <div style="font-size:13.5px;font-weight:700;color:#fff">${esc(j.name)}</div>
+          <div style="font-size:11px;color:var(--dim)">${j.dateStr} · 전체 ${j.total}건</div>
+        </div>
+        <span class="tag ${pct>=100?'tag-g':isPast&&pct<100?'tag-r':'tag-gold'}">${pct}%</span>
+      </div>
+      <div style="display:flex;gap:10px;font-size:12px;color:var(--dim)">
+        <span>🟢 완료 ${j.done}</span><span>🟠 컨펌 ${j.confirm}</span><span>⬜ 예정 ${j.ready}</span>
+      </div>
+      <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:8px;overflow:hidden;display:flex">
+        <div style="background:var(--green);width:${j.total?j.done/j.total*100:0}%"></div>
+        <div style="background:var(--orange);width:${j.total?j.confirm/j.total*100:0}%"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════
+//  3. 협찬 포스팅 (GAS A 연동)
+// ════════════════════════════════
+let _sponsors=[];
+
+async function loadSponsors(){
+  const body=document.getElementById('sponsor-body');
+  if(!body) return;
+  body.innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
+  const res=await apiGet(GAS_A,{action:'get_sponsors'});
+  if(res?.ok) _sponsors=res.sponsors||[];
+  renderSponsors();
+}
+
+function renderSponsors(){
+  const body=document.getElementById('sponsor-body');
+  if(!body) return;
+  const today=todayStr();
+  if(!_sponsors.length){body.innerHTML='<div class="empty">등록된 협찬 포스팅이 없습니다.</div>';return;}
+  const active=_sponsors.filter(s=>!s.done).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const done=_sponsors.filter(s=>s.done);
+  const render=s=>{
+    const overdue=!s.done&&s.dueDate&&s.dueDate<today;
+    return `<div class="list-item">
+      <div style="width:20px;height:20px;border:2px solid ${s.done?'var(--green)':'rgba(255,255,255,.3)'};border-radius:5px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;background:${s.done?'var(--green)':'transparent'}"
+        onclick="toggleSponsor('${s.id}',${!s.done})">${s.done?'<span style="font-size:11px;color:#fff;font-weight:700">✓</span>':''}</div>
+      <div class="list-main">
+        <div class="list-title${s.done?' done':''}" style="${s.done?'text-decoration:line-through;color:var(--dim)':''}">${esc(s.brand||'업체미상')}</div>
+        <div class="list-sub">${s.content?esc(s.content.substring(0,40))+'…':''} ${s.dueDate?`· 마감 <span style="color:${overdue?'var(--red)':'var(--dim)'}">${fmtDate(s.dueDate)}${overdue?' (초과)':''}</span>`:''}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="openSponsorModal('${s.id}')">수정</button>
+        <button class="btn btn-red btn-sm" onclick="deleteSponsor('${s.id}')">삭제</button>
+      </div>
+    </div>`;
+  };
+  body.innerHTML=
+    (active.length?`<div class="card-title" style="margin-bottom:8px">진행중 (${active.length}건)</div>${active.map(render).join('')}<div style="height:1px;background:var(--b);margin:14px 0"></div>`:'')
+    +(done.length?`<div class="card-title" style="margin-bottom:8px;color:var(--dim)">완료 (${done.length}건)</div>${done.map(render).join('')}`:'');
+}
+
+let _sponsorEditId=null;
+function openSponsorModal(id=null){
+  _sponsorEditId=id;
+  const s=id?_sponsors.find(x=>x.id===id):null;
+  // 인라인 모달 생성
+  const ov=document.createElement('div');
+  ov.className='modal-overlay show';
+  ov.innerHTML=`<div class="modal" style="max-width:440px">
+    <div class="modal-hdr"><div class="modal-title">${id?'협찬 수정':'협찬 추가'}</div><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field"><label class="form-label">업체명 *</label><input class="form-input" id="sp-brand" value="${esc(s?.brand||'')}"></div>
+        <div class="form-field"><label class="form-label">내용</label><textarea class="form-textarea" id="sp-content" rows="3">${esc(s?.content||'')}</textarea></div>
+        <div class="form-field"><label class="form-label">마감일</label><input class="form-input" id="sp-due" type="date" value="${s?.dueDate||''}"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">취소</button>
+      <button class="btn btn-gold" onclick="saveSponsor()">저장</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+}
+
+async function saveSponsor(){
+  const brand=document.getElementById('sp-brand')?.value.trim();
+  if(!brand){alert('업체명을 입력해주세요.');return;}
+  const ov=document.querySelector('.modal-overlay.show');
+  if(ov) ov.remove();
+  apiPost(GAS_A,{action:'save_sponsor',id:_sponsorEditId||'',
+    brand,
+    content:document.getElementById('sp-content')?.value||'',
+    dueDate:document.getElementById('sp-due')?.value||''});
+  reloadTo('sponsor');
+}
+
+async function toggleSponsor(id,done){
+  apiPost(GAS_A,{action:'save_sponsor',id,done});
+  reloadTo('sponsor');
+}
+
+async function deleteSponsor(id){
+  if(!confirm('이 협찬 포스팅을 삭제하시겠습니까?')) return;
+  apiPost(GAS_A,{action:'delete_sponsor',id});
+  reloadTo('sponsor');
+}
+
+// ════════════════════════════════
+//  4. 다이겨 매출현황
+// ════════════════════════════════
+const DAIGEO_TABS=[
+  {name:'홍보물제작',gid:'0',colClient:3,colMgr:12,colContract:13,colPaid:14,colRemain:16,dataStart:1},
+  {name:'투표독려',gid:'2044491677',colClient:8,colMgr:28,colContract:22,colPaid:25,dataStart:1},
+  {name:'모바일명함',gid:'555402062',colClient:5,colMgr:9,colContract:10,colPaid:11,colRemain:13,dataStart:1},
+  {name:'보이는컬러링',gid:'2104411310',colClient:5,colMgr:11,colContract:12,colPaid:13,colRemain:15,dataStart:1},
+  {name:'여론조사',gid:'2005994973',colClient:5,colMgr:10,colContract:11,colPaid:12,colRemain:14,dataStart:1},
+  {name:'사진촬영',gid:'908090005',colClient:5,colMgr:10,colContract:14,colPaid:15,colRemain:16,dataStart:1},
+  {name:'선거공보',gid:'1543334261',colClient:6,colMgr:12,colContract:13,colPaid:14,colRemain:16,dataStart:1},
+  {name:'소식지',gid:'1290080666',colClient:4,colMgr:12,colContract:13,colPaid:14,dataStart:1},
+  {name:'ARS',gid:'1964798958',colClient:4,colMgr:12,colContract:13,colPaid:14,dataStart:1},
+];
+
+async function loadDaigeo(){
+  const body=document.getElementById('daigeo-body');
+  if(!body) return;
+  body.innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">매출 데이터 불러오는 중…</div></div>';
+  try{
+    const csvs=await Promise.all(DAIGEO_TABS.map(t=>
+      proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_DAIGEO.id}/export?format=csv&gid=${t.gid}`,15000).catch(()=>null)
+    ));
+    renderDaigeo(csvs);
+  }catch(e){
+    body.innerHTML='<div class="empty">다이겨 시트를 불러오지 못했습니다.<br>시트 링크 공유(뷰어) 설정을 확인해주세요.</div>';
+  }
+}
+
+function renderDaigeo(csvs){
+  const body=document.getElementById('daigeo-body');
+  let totalContract=0,totalPaid=0,totalRemain=0;
+  const tabResults=[];
+
+  DAIGEO_TABS.forEach((t,idx)=>{
+    const csv=csvs[idx];
+    if(!csv){tabResults.push({name:t.name,clients:[],contract:0,paid:0,remain:0});return;}
+    const rows=csvParse(csv);
+    const clients=[];
+    for(let i=t.dataStart;i<rows.length;i++){
+      const r=rows[i]||[];
+      const client=(r[t.colClient]||'').trim();
+      if(!client) continue;
+      const contract=parseInt((r[t.colContract]||'0').replace(/[^\d]/g,''))||0;
+      const paid=parseInt((r[t.colPaid]||'0').replace(/[^\d]/g,''))||0;
+      const remain=t.colRemain!=null?parseInt((r[t.colRemain]||'0').replace(/[^\d]/g,''))||0:Math.max(0,contract-paid);
+      const mgr=(r[t.colMgr]||'').trim();
+      if(!contract&&!paid) continue;
+      clients.push({client,mgr,contract,paid,remain});
+    }
+    const tC=clients.reduce((s,c)=>s+c.contract,0);
+    const tP=clients.reduce((s,c)=>s+c.paid,0);
+    const tR=clients.reduce((s,c)=>s+c.remain,0);
+    totalContract+=tC;totalPaid+=tP;totalRemain+=tR;
+    tabResults.push({name:t.name,clients,contract:tC,paid:tP,remain:tR});
+  });
+
+  let html=`<div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">총 계약금액</div><div class="kpi-val" style="font-size:18px">${fmtKRW(totalContract)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">총 입금액</div><div class="kpi-val ok" style="font-size:18px">${fmtKRW(totalPaid)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">총 미수금</div><div class="kpi-val warn" style="font-size:18px">${fmtKRW(totalRemain)}</div></div>
+  </div>`;
+
+  tabResults.forEach(t=>{
+    if(!t.clients.length) return;
+    html+=`<div class="card" style="margin-bottom:10px">
+      <div class="card-title">${esc(t.name)} <span style="font-weight:400;color:var(--dim)">${t.clients.length}건</span></div>
+      <div style="display:flex;gap:16px;font-size:12px;margin-bottom:10px">
+        <span>계약 <strong style="color:#fff">${fmtKRW(t.contract)}</strong></span>
+        <span>입금 <strong style="color:var(--green)">${fmtKRW(t.paid)}</strong></span>
+        <span>미수 <strong style="color:${t.remain>0?'var(--orange)':'var(--dim)'}">${fmtKRW(t.remain)}</strong></span>
+      </div>
+      ${t.remain>0?t.clients.filter(c=>c.remain>0).slice(0,5).map(c=>`
+      <div class="list-item">
+        <div class="list-main"><div class="list-title">${esc(c.client)}</div>
+        <div class="list-sub">${c.mgr?esc(c.mgr)+' · ':''} 계약 ${fmtKRW(c.contract)} · 입금 ${fmtKRW(c.paid)}</div></div>
+        <span class="tag tag-o">미수 ${fmtKRW(c.remain)}</span>
+      </div>`).join(''):'<div class="empty" style="font-size:12px;padding:6px 0">미수금 없음</div>'}
+    </div>`;
+  });
+  body.innerHTML=html;
+}
+
+// ════════════════════════════════
+//  5. 블로그 관리대행
+// ════════════════════════════════
+async function loadBlog(){
+  const body=document.getElementById('blog-body');
+  if(!body) return;
+  body.innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
+  try{
+    const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_BLOG.id}/export?format=csv&gid=${SH_BLOG.gid}`);
+    renderBlog(csv);
+  }catch(e){
+    body.innerHTML='<div class="empty">블로그 시트를 불러오지 못했습니다.<br>시트 링크 공유(뷰어) 설정을 확인해주세요.</div>';
+  }
+}
+
+function renderBlog(csv){
+  const body=document.getElementById('blog-body');
+  const rows=csvParse(csv);
+  // 헤더: A=조합명, B=영업담당, C=월계약건, D=누적발행, E=잔여
+  const clients=[];
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i]||[];
+    const name=(r[0]||'').trim();
+    if(!name) continue;
+    const mgr=(r[1]||'').trim();
+    const monthly=parseInt((r[2]||'0').replace(/[^\d]/g,''))||0;
+    const done=parseInt((r[3]||'0').replace(/[^\d]/g,''))||0;
+    const remain=parseInt((r[4]||'0').replace(/[^\d-]/g,''))||0;
+    clients.push({name,mgr,monthly,done,remain});
+  }
+  if(!clients.length){body.innerHTML='<div class="empty">클라이언트 데이터가 없습니다.</div>';return;}
+
+  const byMgr={};
+  clients.forEach(c=>{const m=c.mgr||'미지정';if(!byMgr[m])byMgr[m]=[];byMgr[m].push(c);});
+
+  let html=`<div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">총 클라이언트</div><div class="kpi-val">${clients.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">월 총 계약건</div><div class="kpi-val">${clients.reduce((s,c)=>s+c.monthly,0)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">잔여건수</div><div class="kpi-val warn">${clients.reduce((s,c)=>s+Math.max(0,c.remain),0)}</div></div>
+  </div>`;
+
+  Object.entries(byMgr).forEach(([m,cs])=>{
+    html+=`<div class="card" style="margin-bottom:10px"><div class="card-title">👤 ${esc(m)} (${cs.length}명)</div>`;
+    cs.forEach(c=>{
+      const pct=c.monthly?Math.round(c.done/c.monthly*100):0;
+      html+=`<div class="list-item">
+        <div class="list-main">
+          <div class="list-title">${esc(c.name)}</div>
+          <div class="list-sub">월 ${c.monthly}건 · 발행 ${c.done}건 · 잔여 ${Math.max(0,c.remain)}건</div>
+          <div style="height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:6px;overflow:hidden">
+            <div style="height:100%;background:${pct>=100?'var(--green)':pct>=50?'var(--orange)':'var(--red)'};width:${Math.min(pct,100)}%"></div>
+          </div>
+        </div>
+        <span class="tag ${pct>=100?'tag-g':c.remain>0?'tag-o':'tag-dim'}">${pct}%</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+  body.innerHTML=html;
+}
+
+// ════════════════════════════════
+//  6. MB 박스 만들기 모달
+// ════════════════════════════════
+function openMbCreateModal(){
+  const ov=document.createElement('div');
+  ov.className='modal-overlay show';
+  ov.id='mb-create-overlay';
+  const memberOpts=_members.map(m=>`<option value="${esc(m.code)}">${esc(m.name)}</option>`).join('');
+  ov.innerHTML=`<div class="modal" style="max-width:520px">
+    <div class="modal-hdr"><div class="modal-title">🎁 박스 만들기</div><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field"><label class="form-label">박스 이름 *</label><input class="form-input" id="mb-c-name" placeholder="예: 5월 이벤트 박스"></div>
+        <div class="form-row">
+          <div class="form-field"><label class="form-label">유효기간</label><input class="form-input" id="mb-c-expires" type="date"></div>
+          <div class="form-field"><label class="form-label">발급 수량 (0=무제한)</label><input class="form-input" id="mb-c-limit" type="number" value="1" min="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label class="form-label">애니메이션</label>
+            <select class="form-select" id="mb-c-anim">
+              <option value="box">박스</option>
+              <option value="roulette">룰렛</option>
+              <option value="capsule">캡슐</option>
+            </select>
+          </div>
+          <div class="form-field"><label class="form-label">수신자</label>
+            <select class="form-select" id="mb-c-receiver">
+              <option value="">전체공개</option>
+              ${memberOpts}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+            <input type="checkbox" id="mb-c-showItems" style="width:16px;height:16px;cursor:pointer">
+            <label for="mb-c-showItems" style="font-size:13px;color:var(--mid);cursor:pointer">상품목록 공개</label>
+          </div>
+          <div class="form-field" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+            <input type="checkbox" id="mb-c-allowBlank" style="width:16px;height:16px;cursor:pointer">
+            <label for="mb-c-allowBlank" style="font-size:13px;color:var(--mid);cursor:pointer">꽝 포함</label>
+          </div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">상품 등급 및 목록</label>
+          <div id="mb-c-grades-wrap" style="display:flex;flex-direction:column;gap:6px"></div>
+          <button class="add-item-btn" onclick="mbAddGrade()">+ 등급 추가</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">취소</button>
+      <button class="btn btn-gold" onclick="mbSubmitCreate()">🎁 박스 생성</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  // 기본 등급 하나 추가
+  mbAddGrade('B');
+}
+
+function mbAddGrade(gradeVal=''){
+  const wrap=document.getElementById('mb-c-grades-wrap');
+  const grades=['SSS','SS','S','A','B','C','D','E','F'];
+  const div=document.createElement('div');
+  div.style.cssText='background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:10px;display:grid;gap:6px';
+  div.innerHTML=`<div style="display:flex;gap:6px;align-items:center">
+    <select class="form-select mb-grade-sel" style="width:90px">
+      ${grades.map(g=>`<option value="${g}"${g===gradeVal?'selected':''}>${g}</option>`).join('')}
+    </select>
+    <button class="btn btn-red btn-sm" onclick="this.parentElement.parentElement.remove()">✕</button>
+  </div>
+  <textarea class="form-textarea mb-grade-items" rows="2" placeholder="상품명 (줄바꿈으로 여러 개 입력)"></textarea>`;
+  wrap.appendChild(div);
+}
+
+async function mbSubmitCreate(){
+  const name=document.getElementById('mb-c-name')?.value.trim();
+  if(!name){alert('박스 이름을 입력해주세요.');return;}
+  const grades=[...document.querySelectorAll('#mb-c-grades-wrap > div')].map(div=>({
+    grade:div.querySelector('.mb-grade-sel')?.value||'B',
+    items:(div.querySelector('.mb-grade-items')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean)
+  })).filter(g=>g.items.length);
+  if(!grades.length){alert('상품 등급과 목록을 1개 이상 입력해주세요.');return;}
+
+  const payload={
+    action:'create',name,
+    items:grades,
+    expires:document.getElementById('mb-c-expires')?.value||'',
+    limit:parseInt(document.getElementById('mb-c-limit')?.value)||0,
+    animType:document.getElementById('mb-c-anim')?.value||'box',
+    showItems:document.getElementById('mb-c-showItems')?.checked||false,
+    allowBlank:document.getElementById('mb-c-allowBlank')?.checked||false,
+    receiverCode:document.getElementById('mb-c-receiver')?.value||'',
+  };
+
+  document.getElementById('mb-create-overlay')?.remove();
+  showLoading('박스 생성 중…');
+  const res=await mbApiPost(payload);
+  hideLoading();
+  if(res?.ok){
+    alert(`✅ 박스 생성 완료!\nUUID: ${res.uuid}`);
+    reloadTo('mb-admin');
+  } else {
+    alert('박스 생성 실패: '+(res?.error||'서버 오류'));
+  }
+}
+
+// ════════════════════════════════
+//  7. 출력 기능
+// ════════════════════════════════
+async function printExpenseById(id){
+  const res=await apiGet(GAS_B,{action:'get_expense',id});
+  if(!res?.expense){alert('불러오기 실패');return;}
+  printExpenseData(res.expense);
+}
+
+function printExpense(){
+  // 현재 모달에서 데이터 수집해서 인쇄
+  const items=[...document.getElementById('exp-items-wrap').children].map(div=>({
+    account:div.querySelector('.exp-account')?.value||'',
+    summary:div.querySelector('.exp-summary')?.value||'',
+    amount:Number(div.querySelector('.exp-amount')?.value)||0,
+    bank:div.querySelector('.exp-bank')?.value||'',
+    accountNo:div.querySelector('.exp-acno')?.value||'',
+    holder:div.querySelector('.exp-holder')?.value||'',
+  }));
+  const total=items.reduce((s,i)=>s+i.amount,0);
+  printExpenseData({drafter:_user.name,createdAt:todayStr(),items,total,memo:document.getElementById('exp-memo')?.value||''});
+}
+
+function printExpenseData(e){
+  const rows=e.items.map(i=>`<tr>
+    <td>${esc(i.account)}</td><td>${esc(i.summary)}</td><td style="text-align:right">${Number(i.amount||0).toLocaleString()}원</td>
+    <td>${esc(i.bank)}</td><td>${esc(i.accountNo)}</td><td>${esc(i.holder)}</td>
+  </tr>`).join('');
+  const w=window.open('','_blank','width=800,height=600');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>지출결의서</title>
+  <style>body{font-family:'Noto Sans KR',sans-serif;padding:40px;color:#000;font-size:13px}
+  h2{text-align:center;margin-bottom:24px;font-size:20px}
+  .meta{display:flex;gap:30px;margin-bottom:20px;font-size:13px}
+  table{width:100%;border-collapse:collapse;margin-bottom:16px}
+  th,td{border:1px solid #333;padding:7px 10px;text-align:left;font-size:12px}
+  th{background:#f5f5f5;font-weight:700}
+  .total{text-align:right;font-size:15px;font-weight:700;margin-bottom:16px}
+  .memo{font-size:12px;color:#555;margin-top:8px}
+  @media print{body{padding:20px}}</style></head><body>
+  <h2>지 출 결 의 서</h2>
+  <div class="meta"><span>기안자: <strong>${esc(e.drafter)}</strong></span><span>작성일: <strong>${fmtDate(e.createdAt)}</strong></span></div>
+  <table><thead><tr><th>계정과목</th><th>적요</th><th>금액</th><th>은행명</th><th>계좌번호</th><th>예금주</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <div class="total">합계: ${Number(e.total||0).toLocaleString()}원</div>
+  ${e.memo?`<div class="memo">메모: ${esc(e.memo)}</div>`:''}
+  <script>window.onload=()=>{window.print();}<\/script></body></html>`);
+  w.document.close();
+}
+
+function printRefund(){
+  const items=[...document.getElementById('ref-items-wrap').children].map(div=>({
+    item:div.querySelector('.ref-item')?.value||'',
+    name:div.querySelector('.ref-name')?.value||'',
+    idNo:div.querySelector('.ref-idno')?.value||'',
+    bank:div.querySelector('.ref-bank')?.value||'',
+    accountNo:div.querySelector('.ref-acno')?.value||'',
+    holder:div.querySelector('.ref-holder')?.value||'',
+    amount:Number(div.querySelector('.ref-amount')?.value)||0,
+    note:div.querySelector('.ref-note')?.value||'',
+  }));
+  const total=items.reduce((s,i)=>s+i.amount,0);
+  const w=window.open('','_blank','width=900,height=600');
+  const rows=items.map(i=>`<tr>
+    <td>${esc(i.item)}</td><td>${esc(i.name)}</td><td>${esc(i.idNo)}</td>
+    <td>${esc(i.bank)}</td><td>${esc(i.accountNo)}</td><td>${esc(i.holder)}</td>
+    <td style="text-align:right">${i.amount.toLocaleString()}원</td><td>${esc(i.note)}</td>
+  </tr>`).join('');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>반환금처리대장</title>
+  <style>body{font-family:'Noto Sans KR',sans-serif;padding:30px;color:#000;font-size:12px}
+  h2{text-align:center;margin-bottom:20px;font-size:18px}
+  .meta{display:flex;gap:30px;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;margin-bottom:12px}
+  th,td{border:1px solid #333;padding:6px 8px;font-size:11px}
+  th{background:#f5f5f5;font-weight:700}
+  .total{text-align:right;font-size:14px;font-weight:700}
+  @media print{body{padding:15px}}</style></head><body>
+  <h2>반 환 금 처 리 대 장</h2>
+  <div class="meta"><span>기안자: <strong>${esc(_user.name)}</strong></span><span>작성일: <strong>${fmtDate(todayStr())}</strong></span></div>
+  <table><thead><tr><th>품목</th><th>성함</th><th>주민번호</th><th>은행명</th><th>계좌번호</th><th>예금주</th><th>금액</th><th>비고</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <div class="total">반환금 합계: ${total.toLocaleString()}원</div>
+  <script>window.onload=()=>{window.print();}<\/script></body></html>`);
+  w.document.close();
+}
 
 // ════════════════════════════════
 //  키보드 단축키
