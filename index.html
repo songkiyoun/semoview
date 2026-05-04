@@ -405,7 +405,7 @@ a{color:inherit;text-decoration:none}
     </div>
     <button class="login-btn" id="lc-btn" onclick="doLogin()">로그인</button>
     <div class="login-err" id="lc-err"></div>
-    <div class="login-ver">SemoView v4.0 · Daigyeo</div>
+    <div class="login-ver">SemoView v4.0 · Daigyo</div>
   </div>
 </div>
 
@@ -1186,8 +1186,11 @@ async function reloadTo(tab, delay=2000){
 // ── 사이드바 동적 생성 (grade 기반 확실한 분기)
 function buildSidebar(grade){
   const g = (grade||'').toLowerCase().trim();
-  const isAdmin = g === 'admin';
-  const isMgr   = g === 'admin' || g === 'manager';
+  const isAdmin  = g === 'admin';
+  const isMgr    = g === 'admin' || g === 'manager';
+  const isStaff  = g === 'staff';
+  // MB 수령·마음의소리: admin + staff만 (manager 제외)
+  const isAdminOrStaff = isAdmin || isStaff;
 
   const item = (id, icon, label, action, extra='') =>
     `<button class="sb-item" id="sb-${id}" onclick="${action}">${extra}<span class="si">${icon}</span><span class="sl">${label}</span></button>`;
@@ -1223,14 +1226,14 @@ function buildSidebar(grade){
   <div class="sb-section">
     <div class="sb-section-label">미스테리박스</div>
     ${isAdmin ? item('mb-admin','⚙','관리자',"nav('mb-admin',this)") : ''}
-    ${isMgr ? item('mb-user','🎁','수령',"nav('mb-user',this)") : ''}
+    ${isAdminOrStaff ? item('mb-user','🎁','수령',"nav('mb-user',this)") : ''}
     ${isAdmin ? item('mb-stats','📊','통계',"nav('mb-stats',this)") : ''}
   </div>
   <div class="sb-divider"></div>
   <div class="sb-section">
     ${item('profile','👤','내 프로필',"nav('profile',this)")}
     ${isAdmin ? `<button class="sb-item" id="sb-mapeon-inbox" onclick="openMapeonInbox()"><span class="si">💬</span><span class="sl">마음의소리 수신함</span><span class="sb-badge" id="sb-mapeon-badge" style="display:none">0</span></button>` : ''}
-    ${isMgr ? `<button class="sb-item" onclick="openMapeonModal()"><span class="si">💬</span><span class="sl">마음의소리</span></button>` : ''}
+    ${isAdminOrStaff ? `<button class="sb-item" onclick="openMapeonModal()"><span class="si">💬</span><span class="sl">마음의소리</span></button>` : ''}
     ${isAdmin ? item('notice-admin','📢','공지 작성',"nav('notice-admin',this)") : ''}
     ${isAdmin ? item('achieve-admin','🏆','업적 관리',"nav('achieve-admin',this)") : ''}
   </div>`;
@@ -2267,7 +2270,7 @@ async function deleteExpense(id){
 //  반환금처리대장
 // ════════════════════════════════
 let _refunds=[];
-let _refundEditId = null;
+let _achieveDefs = []; // 업적 정의 캐시
 
 async function loadRefunds(){
   document.getElementById('refund-body').innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
@@ -2888,6 +2891,17 @@ async function loadProfile(){
   const stats=sRes?.stats||{};
   const achievements=achRes?.achievements||[];
 
+  // 2번: 아이콘 표시를 위해 _achieveDefs와 조인
+  // _achieveDefs가 비어있으면 별도 로드
+  let defsMap = {};
+  if(_achieveDefs.length){
+    _achieveDefs.forEach(d=>defsMap[d.id]=d);
+  } else {
+    const defRes=await apiGet(GAS_A,{action:'get_achieve_def'});
+    _achieveDefs=defRes?.defs||[];
+    _achieveDefs.forEach(d=>defsMap[d.id]=d);
+  }
+
   // 할일 완료율: get_todos에서 직접 계산
   const allTodos=(tdRes?.todos||[]).filter(t=>t.code===_user.code);
   const totalTodos=allTodos.length;
@@ -2925,9 +2939,14 @@ async function loadProfile(){
     <div class="card">
       <div class="card-title">🏆 보유 업적 (${achievements.length}개)</div>
       ${achievements.length
-        ?achievements.map(a=>`<div class="list-item">
-          <div class="list-main"><div class="list-title">${esc(a.name)}</div><div class="list-sub">${fmtDate(a.earnedAt)}</div></div>
-        </div>`).join('')
+        ?achievements.map(a=>{
+          const def=defsMap[a.id]||{};
+          const icon=def.icon||a.icon||'🏆';
+          return `<div class="list-item">
+            <div style="font-size:20px;flex-shrink:0">${esc(icon)}</div>
+            <div class="list-main"><div class="list-title">${esc(a.name)}</div><div class="list-sub">${fmtDate(a.earnedAt)}</div></div>
+          </div>`;
+        }).join('')
         :'<div class="empty">아직 취득한 업적이 없습니다.</div>'}
     </div>`;
 }
@@ -3873,6 +3892,7 @@ async function loadAchieveAdmin(){
   ]);
   const defs=defRes?.defs||[];
   const all=achRes?.achievements||[];
+  _achieveDefs = defs; // 캐시 저장 (수정 모달에서 사용)
   const memberMap={};_members.forEach(m=>memberMap[m.code]=m.name);
   let html=`<div class="kpi-grid" style="margin-bottom:12px">
     <div class="kpi-card"><div class="kpi-label">총 업적 정의</div><div class="kpi-val">${defs.length}</div></div>
@@ -3923,24 +3943,32 @@ function openAchieveDefModal(id=null){
     {v:'mapeon_send',l:'마음의소리 발송'},
   ];
   const ICONS=['🏆','⭐','🎖','🥇','🏅','🎯','💎','🔥','🌟','✨','🦁','🦊','🐉','🎪','🎩','🎲','📚','🛡','⚔','🚀'];
+
+  // 1번: 수정 시 기존 데이터 로드
+  const existing = id ? (_achieveDefs||[]).find(d=>d.id===id) : null;
+  const initName   = existing?.name     || '';
+  const initIcon   = existing?.icon     || '🏆';
+  const initCond   = existing?.condType || condTypes[0].v;
+  const initVal    = existing?.condValue || 1;
+
   const ov=document.createElement('div');
   ov.className='modal-overlay show';
   ov.innerHTML=`<div class="modal" style="max-width:440px">
     <div class="modal-hdr"><div class="modal-title">${id?'업적 수정':'업적 추가'}</div><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-field"><label class="form-label">업적명 *</label><input class="form-input" id="ach-name" placeholder="예: 성실한 하루"></div>
+        <div class="form-field"><label class="form-label">업적명 *</label><input class="form-input" id="ach-name" value="${esc(initName)}" placeholder="예: 성실한 하루"></div>
         <div class="form-field">
           <label class="form-label">아이콘</label>
           <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
-            ${ICONS.map(ic=>`<button type="button" style="width:32px;height:32px;font-size:18px;background:rgba(255,255,255,.06);border:1px solid var(--b);border-radius:6px;cursor:pointer" onclick="document.getElementById('ach-icon').value='${ic}';this.parentElement.querySelectorAll('button').forEach(b=>b.style.borderColor='var(--b)');this.style.borderColor='var(--gold)'">${ic}</button>`).join('')}
+            ${ICONS.map(ic=>`<button type="button" style="width:32px;height:32px;font-size:18px;background:rgba(255,255,255,.06);border:1px solid ${ic===initIcon?'var(--gold)':'var(--b)'};border-radius:6px;cursor:pointer" onclick="document.getElementById('ach-icon').value='${ic}';this.parentElement.querySelectorAll('button').forEach(b=>b.style.borderColor='var(--b)');this.style.borderColor='var(--gold)'">${ic}</button>`).join('')}
           </div>
-          <input class="form-input" id="ach-icon" value="🏆" maxlength="2" placeholder="직접 입력">
+          <input class="form-input" id="ach-icon" value="${esc(initIcon)}" maxlength="2" placeholder="직접 입력">
         </div>
         <div class="form-field"><label class="form-label">조건 유형</label>
-          <select class="form-select" id="ach-cond-type">${condTypes.map(t=>`<option value="${t.v}">${t.l}</option>`).join('')}</select>
+          <select class="form-select" id="ach-cond-type">${condTypes.map(t=>`<option value="${t.v}"${t.v===initCond?' selected':''}>${t.l}</option>`).join('')}</select>
         </div>
-        <div class="form-field"><label class="form-label">조건 값 (횟수)</label><input class="form-input" id="ach-cond-val" type="number" value="1" min="1"></div>
+        <div class="form-field"><label class="form-label">조건 값 (횟수)</label><input class="form-input" id="ach-cond-val" type="number" value="${initVal}" min="1"></div>
       </div>
       <input type="hidden" id="ach-edit-id" value="${id||''}">
     </div>
