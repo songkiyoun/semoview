@@ -1105,54 +1105,48 @@ const PROXIES = [
 ];
 let _pIdx = 0;
 
-async function apiFetch(base, params, method='GET', body=null){
+async function apiFetch(base, params, method='GET', body=null, needResponse=false){
   const url = base + (params ? '?' + new URLSearchParams(params).toString() : '');
-  // GET: 프록시 체인
-  if(method === 'GET'){
+
+  // GET 또는 응답이 필요한 POST: 프록시 체인
+  if(method === 'GET' || needResponse){
+    const fetchUrl = method === 'GET' ? url : base;
     for(let i=0;i<PROXIES.length;i++){
-      const proxyUrl = PROXIES[(_pIdx+i)%PROXIES.length](url);
+      const proxyUrl = PROXIES[(_pIdx+i)%PROXIES.length](fetchUrl);
       try{
-        const r = await fetch(proxyUrl, {signal:AbortSignal.timeout(10000)});
+        const opts = method === 'GET'
+          ? {signal:AbortSignal.timeout(12000)}
+          : {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(12000)};
+        const r = await fetch(proxyUrl, opts);
         if(!r.ok) continue;
         const txt = await r.text();
         return JSON.parse(txt);
       }catch(_){}
     }
-    return null;
-  }
-  // POST: 프록시 체인 우선(브라우저 CORS 우회), 실패 시 직접 호출
-  const payload = JSON.stringify(body || {});
-  for(let i=0;i<PROXIES.length;i++){
-    const proxyUrl = PROXIES[(_pIdx+i)%PROXIES.length](base);
+    // 프록시 전부 실패 시 직접 시도 (CORS 허용된 경우)
     try{
-      const r = await fetch(proxyUrl, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: payload,
-        signal:AbortSignal.timeout(12000)
+      const r = await fetch(base, {
+        method: method==='GET'?'GET':'POST',
+        headers: method==='POST'?{'Content-Type':'text/plain'}:{},
+        body: method==='POST'?JSON.stringify(body):undefined,
+        signal: AbortSignal.timeout(12000)
       });
-      if(!r.ok) continue;
       const txt = await r.text();
-      const data = JSON.parse(txt);
-      _pIdx = (_pIdx+i)%PROXIES.length;
-      return data;
-    }catch(_){ }
+      return JSON.parse(txt);
+    }catch(_){}
+    return null;
   }
 
-  // 프록시 전체 실패 시 직접 호출 시도
+  // 응답 불필요한 POST: no-cors (빠른 저장용)
   try{
-    const r = await fetch(base, {
+    await fetch(base, {
       method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: payload,
-      signal:AbortSignal.timeout(12000)
+      headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify(body),
+      mode:'no-cors'
     });
-    if(!r.ok) return null;
-    const txt = await r.text();
-    return JSON.parse(txt);
-  }catch(_){
-    return null;
-  }
+    return {ok:true};
+  }catch(_){return null;}
 }
 
 async function apiGet(gas, params){ return await apiFetch(gas, {...params, token:_user?.token}); }
@@ -1183,7 +1177,7 @@ async function doLogin(){
   if(!code||!pw){err.textContent='코드명과 패스워드를 입력해주세요.';return;}
   btn.disabled=true; btn.textContent='로그인 중…'; err.textContent='';
 
-  const res = await apiFetch(GAS_A, null, 'POST', {action:'login', code, password:pw});
+  const res = await apiFetch(GAS_A, null, 'POST', {action:'login', code, password:pw}, true);
   if(res?.ok && res.token){
     const user = decodeToken(res.token) || res.user;
     if(!user){err.textContent='토큰 오류. 다시 시도해주세요.';btn.disabled=false;btn.textContent='로그인';return;}
@@ -1192,7 +1186,7 @@ async function doLogin(){
     localStorage.setItem('sv4-user', JSON.stringify({code:user.code,name:user.name,grade:user.grade}));
     enterApp();
   } else {
-    err.textContent = res?.error || '로그인 실패. 네트워크/CORS 또는 코드명·패스워드를 확인해주세요.';
+    err.textContent = res?.error || '로그인 실패. 코드명과 패스워드를 확인해주세요.';
     btn.disabled=false; btn.textContent='로그인';
   }
 }
