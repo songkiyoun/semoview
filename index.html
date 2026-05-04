@@ -1250,28 +1250,25 @@ function doLogout(){
 //  역할별 UI
 // ════════════════════════════════
 function applyRoleUI(grade){
-  const isAdmin   = grade === 'admin';
-  const isMgrPlus = grade === 'admin' || grade === 'manager';
+  // grade 정규화 (대소문자·공백 무관)
+  const g = (grade||'').toLowerCase().trim();
+  const isAdmin   = g === 'admin';
+  const isMgrPlus = g === 'admin' || g === 'manager';
 
-  // admin 전용 요소
+  // admin 전용 요소 (sb-admin-only 클래스)
   document.querySelectorAll('.sb-admin-only').forEach(el=>{
-    el.style.display = isAdmin ? 'flex' : 'none';
+    el.style.setProperty('display', isAdmin ? 'flex' : 'none', 'important');
   });
   // admin+manager 요소
   document.querySelectorAll('.sb-admin-manager').forEach(el=>{
-    el.style.display = isMgrPlus ? 'flex' : 'none';
+    el.style.setProperty('display', isMgrPlus ? 'flex' : 'none', 'important');
   });
   // 할일 담당자 지정
   const tdWrap = document.getElementById('td-assignee-wrap');
-  if(tdWrap) tdWrap.style.display = isAdmin ? 'block' : 'none';
-  // 공지 작성 (sb-admin-only 포함이지만 명시적으로 한 번 더)
+  if(tdWrap) tdWrap.style.setProperty('display', isAdmin ? 'block' : 'none', 'important');
+  // 공지 작성 버튼 (명시적)
   const noticeBtn = document.getElementById('sb-notice-admin');
-  if(noticeBtn) noticeBtn.style.display = isAdmin ? 'flex' : 'none';
-  // 관리자 박스 관련
-  ['sb-mb-admin','sb-mb-stats','sb-blog','sb-sponsor','sb-mapeon-inbox'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el) el.style.display = isAdmin ? 'flex' : 'none';
-  });
+  if(noticeBtn) noticeBtn.style.setProperty('display', isAdmin ? 'flex' : 'none', 'important');
 }
 
 // ════════════════════════════════
@@ -1293,26 +1290,29 @@ async function loadInitialData(){
 }
 
 function populateMemberSelects(){
-  const selects = ['ord-receiver','td-assignee','notice-receiver','cal-viewer-sel'];
-  selects.forEach(id=>{
-    const sel = document.getElementById(id);
+  // 달력 뷰어 (관리자용) - 전체 + 개인별
+  const calSel = document.getElementById('cal-viewer-sel');
+  if(calSel && _user?.grade?.toLowerCase()==='admin'){
+    calSel.innerHTML='<option value="">전체 팀 달력</option>';
+    _members.forEach(m=>{
+      const opt=document.createElement('option');
+      opt.value=m.code; opt.textContent=m.name; calSel.appendChild(opt);
+    });
+    document.getElementById('cal-viewer-wrap').style.display='block';
+  }
+  // 발주서 수신자, 할일 담당자, 공지 수신자
+  ['ord-receiver','td-assignee','notice-receiver'].forEach(id=>{
+    const sel=document.getElementById(id);
     if(!sel) return;
-    // 기존 옵션 유지 (첫 번째 빈 옵션)
-    const firstOpt = sel.options[0];
-    sel.innerHTML = '';
+    const firstOpt=sel.options[0];
+    sel.innerHTML='';
     if(firstOpt) sel.appendChild(firstOpt);
     _members.forEach(m=>{
-      if(m.code === _user.code) return; // 본인 제외
-      const opt = document.createElement('option');
-      opt.value = m.code; opt.textContent = m.name;
-      sel.appendChild(opt);
+      if(m.code===_user.code) return;
+      const opt=document.createElement('option');
+      opt.value=m.code; opt.textContent=m.name; sel.appendChild(opt);
     });
   });
-  // 관리자 달력 뷰어 표시
-  if(_user.grade==='admin'){
-    const calViewer = document.getElementById('cal-viewer-wrap');
-    if(calViewer) calViewer.style.display='block';
-  }
 }
 
 // ════════════════════════════════
@@ -1328,20 +1328,20 @@ function nav(id, el=null){
     const sb = document.getElementById('sb-'+id);
     if(sb) sb.classList.add('on');
   }
-  // 페이지별 로드
+  // 페이지별 로드 (캐시 먼저 렌더 → 백그라운드 최신화)
   if(id==='home')        loadHome();
-  if(id==='calendar')    renderCalendar();
-  if(id==='schedule')    renderSchedule();
-  if(id==='todo')        renderTodos();
+  if(id==='calendar')    { renderCalendar(); loadEvents(); }
+  if(id==='schedule')    { renderSchedule(); loadEvents(); }
+  if(id==='todo')        { renderTodos(); loadTodos(); }
   if(id==='order')       loadOrders();
   if(id==='expense')     loadExpenses();
   if(id==='refund')      loadRefunds();
-  if(id==='contact')     renderContacts();
+  if(id==='contact')     { renderContacts(); loadContacts(); }
   if(id==='mb-user')     loadMbUser();
   if(id==='mb-admin')    loadMbAdmin();
   if(id==='mb-stats')    loadMbStats();
   if(id==='profile')     loadProfile();
-  if(id==='notice-admin')loadNoticeAdmin();
+  if(id==='notice-admin') loadNoticeAdmin();
   // 모바일: 사이드바 닫기
   if(window.innerWidth < 700) document.getElementById('sidebar').classList.add('collapsed');
 }
@@ -1634,7 +1634,9 @@ async function loadHome(){
 //  일정
 // ════════════════════════════════
 async function loadEvents(){
-  const res = await apiGet(GAS_A,{action:'get_events'});
+  const isAdmin = _user?.grade === 'admin';
+  const action  = isAdmin ? 'get_all_events' : 'get_events';
+  const res = await apiGet(GAS_A, {action});
   if(res?.ok) _events = res.events||[];
   renderSchedule();
   renderCalendar();
@@ -1748,7 +1750,7 @@ function renderCalendar(){
     const ds=`${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday=d===todayD&&_calMonth===todayM&&_calYear===todayY;
     const isSel=ds===_calSelected;
-    const dayEvs=_events.filter(ev=>(ev.startAt||'').slice(0,10)===ds);
+    const dayEvs=getFilteredEvents().filter(ev=>(ev.startAt||'').slice(0,10)===ds);
     const dots=dayEvs.map(ev=>{
       const isHol=ev.type!=='일정';
       return `<div class="cal-dot ${isHol?'cal-dot-hol':'cal-dot-ev'}"></div>`;
@@ -1783,20 +1785,29 @@ function calSelectDay(ds){
 function renderCalDayEvents(ds){
   const el=document.getElementById('cal-day-events');
   if(!el) return;
-  const evs=_events.filter(ev=>(ev.startAt||'').slice(0,10)===ds);
+  const memberMap={};_members.forEach(m=>memberMap[m.code]=m.name);
+  const evs=getFilteredEvents().filter(ev=>(ev.startAt||'').slice(0,10)===ds);
   if(!evs.length){el.innerHTML=`<div class="brief-empty">${fmtDate(ds)} — 일정 없음</div>`;return;}
   el.innerHTML=`<div style="font-size:12px;color:var(--dim);margin-bottom:8px">${fmtDate(ds)}</div>`+
     evs.map(ev=>`<div class="list-item">
       <div class="list-main">
-        <div class="list-title">${esc(ev.title)}</div>
+        <div class="list-title">${esc(ev.title)}${ev.code&&ev.code!==_user.code?` <span style="font-size:11px;color:var(--gold)">(${esc(memberMap[ev.code]||ev.code)})</span>`:''}</div>
         <div class="list-sub">${ev.startAt?fmtDateTime(ev.startAt):''} ${ev.place?'· '+esc(ev.place):''}</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="openEventModal('${ev.id}')">수정</button>
+      ${ev.code===_user.code?`<button class="btn btn-ghost btn-sm" onclick="openEventModal('${ev.id}')">수정</button>`:''}
     </div>`).join('');
 }
 
+let _calViewerCode = ''; // '' = 전체
 function calViewerChange(){
-  // 관리자 다른 직원 달력 보기 (추후 구현)
+  _calViewerCode = document.getElementById('cal-viewer-sel')?.value || '';
+  renderCalendar();
+  if(_calSelected) renderCalDayEvents(_calSelected);
+}
+
+function getFilteredEvents(){
+  if(!_calViewerCode) return _events; // 전체
+  return _events.filter(ev => ev.code === _calViewerCode);
 }
 
 // ════════════════════════════════
@@ -2862,15 +2873,21 @@ async function loadMbStats(){
 async function loadProfile(){
   const body=document.getElementById('profile-body');
   if(!body)return;
-  const [sRes,achRes]=await Promise.all([
+  body.innerHTML='<div class="spin-wrap"><div class="spin"></div></div>';
+  const [sRes,achRes,tdRes]=await Promise.all([
     apiGet(GAS_A,{action:'get_stats'}),
     apiGet(GAS_A,{action:'get_achievements'}),
+    apiGet(GAS_A,{action:'get_todos'}),
   ]);
   const stats=sRes?.stats||{};
   const achievements=achRes?.achievements||[];
-  const totalTodos=stats.todo_add||0;
-  const doneTodos=stats.todo_complete||0;
+
+  // 할일 완료율: get_todos에서 직접 계산
+  const allTodos=(tdRes?.todos||[]).filter(t=>t.code===_user.code);
+  const totalTodos=allTodos.length;
+  const doneTodos=allTodos.filter(t=>t.done).length;
   const todoRate=totalTodos?Math.round(doneTodos/totalTodos*100):0;
+
   body.innerHTML=`
     <div class="card" style="margin-bottom:12px">
       <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:4px">${esc(_user.name)}</div>
@@ -2881,13 +2898,13 @@ async function loadProfile(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
         ${[
           ['일정 추가',stats.event_add||0,'회'],
-          ['할일 추가',totalTodos,'회'],
+          ['할일 추가',totalTodos,'건'],
+          ['할일 완료',doneTodos,'건'],
           ['할일 완료율',todoRate,'%'],
           ['보낸 발주서',stats.order_send||0,'건'],
           ['받은 발주서',stats.order_receive||0,'건'],
           ['지출결의서',stats.expense_add||0,'건'],
           ['반환금처리',stats.refund_add||0,'건'],
-          ['마음의소리',stats.mapeon_send||0,'건'],
         ].map(([label,val,unit])=>`
           <div style="padding:8px;background:var(--s2);border-radius:8px">
             <div style="font-size:10.5px;color:var(--dim);margin-bottom:3px">${label}</div>
