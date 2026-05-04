@@ -1150,10 +1150,9 @@ async function apiFetch(base, params, method='GET', body=null, needResponse=fals
   }catch(_){return null;}
 }
 
-// GET: code+secret+grade를 직접 파라미터로 전달 (토큰 URL 인코딩 문제 우회)
-// 기존 params의 code는 덮어쓰지 않음 (로그인 시 사용자 입력 code 유지)
+// GET: code+secret+grade+캐시버스팅 파라미터 전달
 async function apiGet(gas, params){
-  const extra = {};
+  const extra = {_t: Date.now()}; // 프록시 캐시 무력화
   if(!params.code)   extra.code   = _user?.code;
   if(!params.grade)  extra.grade  = _user?.grade;
   if(!params.secret) extra.secret = TOKEN_SECRET;
@@ -1251,25 +1250,27 @@ function doLogout(){
 //  역할별 UI
 // ════════════════════════════════
 function applyRoleUI(grade){
-  // admin만 보이는 것
+  const isAdmin   = grade === 'admin';
+  const isMgrPlus = grade === 'admin' || grade === 'manager';
+
+  // admin 전용 요소
   document.querySelectorAll('.sb-admin-only').forEach(el=>{
-    el.style.display = grade==='admin' ? 'flex' : 'none';
+    el.style.display = isAdmin ? 'flex' : 'none';
   });
-  // admin + manager 보이는 것
+  // admin+manager 요소
   document.querySelectorAll('.sb-admin-manager').forEach(el=>{
-    el.style.display = (grade==='admin'||grade==='manager') ? 'flex' : 'none';
+    el.style.display = isMgrPlus ? 'flex' : 'none';
   });
-  // 할일 담당자 지정 (admin만)
-  const tdAssigneeWrap = document.getElementById('td-assignee-wrap');
-  if(tdAssigneeWrap) tdAssigneeWrap.style.display = grade==='admin' ? 'block' : 'none';
-  // 공지작성 사이드바 항목
-  const noticeAdminSb = document.getElementById('sb-notice-admin');
-  if(noticeAdminSb) noticeAdminSb.style.display = grade==='admin' ? 'flex' : 'none';
-  // 공지 타입 선택자에 수신자 토글
-  const noticeType = document.getElementById('notice-type');
-  if(noticeType) noticeType.addEventListener('change', ()=>{
-    const wrap = document.getElementById('notice-receiver-wrap');
-    if(wrap) wrap.style.display = noticeType.value==='개인공지' ? 'block' : 'none';
+  // 할일 담당자 지정
+  const tdWrap = document.getElementById('td-assignee-wrap');
+  if(tdWrap) tdWrap.style.display = isAdmin ? 'block' : 'none';
+  // 공지 작성 (sb-admin-only 포함이지만 명시적으로 한 번 더)
+  const noticeBtn = document.getElementById('sb-notice-admin');
+  if(noticeBtn) noticeBtn.style.display = isAdmin ? 'flex' : 'none';
+  // 관리자 박스 관련
+  ['sb-mb-admin','sb-mb-stats','sb-blog','sb-sponsor','sb-mapeon-inbox'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = isAdmin ? 'flex' : 'none';
   });
 }
 
@@ -1882,10 +1883,14 @@ async function saveTodo(){
 }
 
 async function toggleTodo(id,done){
-  await apiPost(GAS_A,{action:'complete_todo',id,done});
+  // Optimistic update
   const t=_todos.find(x=>x.id===id);
   if(t){t.done=done;t.doneAt=done?todayStr():'';}
   renderTodos();
+  // 서버 저장
+  apiPost(GAS_A,{action:'complete_todo',id,done});
+  // 3초 후 서버 재조회 (캐시 무력화)
+  setTimeout(()=>loadTodos(), 3000);
 }
 
 async function deleteTodo(id){
@@ -2035,8 +2040,9 @@ async function confirmOrder(id){
   if(o){ o.confirmed=true; o.confirmedAt=new Date().toLocaleString('ko-KR'); }
   closeModal('doc-view-modal');
   renderOrders();
-  // 백그라운드 서버 저장
+  // 서버 저장 후 3초 뒤 서버에서 재조회 (캐시 무력화 타임스탬프 포함)
   apiPost(GAS_B,{action:'confirm_order',id});
+  setTimeout(()=>loadOrders(), 3000);
 }
 
 async function deleteOrder(id){
