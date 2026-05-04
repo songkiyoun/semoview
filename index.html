@@ -548,19 +548,6 @@ a{color:inherit;text-decoration:none}
     </div>
   </div>
 
-  <!-- 🏢 거래처 주소록 -->
-  <div class="page" id="page-contact">
-    <div class="page-header">
-      <div><div class="page-title">🏢 거래처 주소록</div></div>
-      <div class="page-actions">
-        <button class="btn btn-gold btn-sm" onclick="openContactModal()">+ 추가</button>
-      </div>
-    </div>
-    <div class="page-body" id="contact-body">
-      <div class="spin-wrap"><div class="spin"></div></div>
-    </div>
-  </div>
-
   <!-- 🎁 MB 수령 -->
   <div class="page" id="page-mb-user">
     <div class="page-header">
@@ -869,8 +856,7 @@ a{color:inherit;text-decoration:none}
         </div>
         <div class="form-field">
           <label class="form-label">거래처명 *</label>
-          <input class="form-input" id="ord-client" placeholder="거래처명" list="contact-list">
-          <datalist id="contact-list"></datalist>
+          <input class="form-input" id="ord-client" placeholder="거래처명">
         </div>
         <div class="form-row">
           <div class="form-field">
@@ -981,51 +967,6 @@ a{color:inherit;text-decoration:none}
   </div>
 </div>
 
-<!-- 거래처 -->
-<div class="modal-overlay" id="contact-modal" onclick="if(event.target===this)closeModal('contact-modal')">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-hdr">
-      <div class="modal-title" id="contact-modal-title">거래처 추가</div>
-      <button class="modal-close" onclick="closeModal('contact-modal')">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-field">
-          <label class="form-label">거래처명 *</label>
-          <input class="form-input" id="ct-name" placeholder="거래처명">
-        </div>
-        <div class="form-row">
-          <div class="form-field">
-            <label class="form-label">담당자</label>
-            <input class="form-input" id="ct-manager" placeholder="담당자명">
-          </div>
-          <div class="form-field">
-            <label class="form-label">연락처</label>
-            <input class="form-input" id="ct-tel" placeholder="010-0000-0000">
-          </div>
-        </div>
-        <div class="form-field">
-          <label class="form-label">이메일</label>
-          <input class="form-input" id="ct-email" type="email" placeholder="email@example.com">
-        </div>
-        <div class="form-field">
-          <label class="form-label">주소</label>
-          <input class="form-input" id="ct-address" placeholder="주소">
-        </div>
-        <div class="form-field">
-          <label class="form-label">메모</label>
-          <textarea class="form-textarea" id="ct-memo" rows="2"></textarea>
-        </div>
-      </div>
-      <input type="hidden" id="ct-id">
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost" onclick="closeModal('contact-modal')">취소</button>
-      <button class="btn btn-gold" onclick="saveContact()">저장</button>
-    </div>
-  </div>
-</div>
-
 <!-- 문서 상세 보기 -->
 <div class="modal-overlay" id="doc-view-modal" onclick="if(event.target===this)closeModal('doc-view-modal')">
   <div class="modal" style="max-width:600px">
@@ -1057,7 +998,6 @@ let _members = [];
 let _events = [];
 let _todos  = [];
 let _notices = [];
-let _contacts = [];
 let _editId = null; // 현재 편집 중인 문서 ID
 let _calYear, _calMonth, _calSelected;
 
@@ -1278,7 +1218,6 @@ function buildSidebar(grade){
     ${item('order','📋','발주서',"nav('order',this)")}
     ${item('expense','💰','지출결의서',"nav('expense',this)")}
     ${item('refund','💸','반환금처리대장',"nav('refund',this)")}
-    ${item('contact','🏢','거래처 주소록',"nav('contact',this)")}
   </div>
   <div class="sb-divider"></div>
   <div class="sb-section">
@@ -1313,7 +1252,7 @@ function doLogout(){
   localStorage.removeItem('sv4-user');
   localStorage.removeItem('sv4-last-tab');
   _user=null; _members=[]; _events=[]; _todos=[]; _notices=[];
-  _contacts=[]; _orders=[]; _expenses=[]; _refunds=[];
+  _orders=[]; _expenses=[]; _refunds=[];
   document.getElementById('topbar').style.display='none';
   document.getElementById('app-body').style.display='none';
   document.getElementById('login-screen').style.display='flex';
@@ -1339,7 +1278,7 @@ async function loadInitialData(){
   // 공지 로드
   await loadNotices();
   // 일정·할일 로드
-  await Promise.all([loadEvents(), loadTodos(), loadContacts()]);
+  await Promise.all([loadEvents(), loadTodos()]);
   hideLoading();
 }
 
@@ -1399,7 +1338,6 @@ function nav(id, el=null){
   if(id==='order')       loadOrders();
   if(id==='expense')     loadExpenses();
   if(id==='refund')      loadRefunds();
-  if(id==='contact')     { renderContacts(); loadContacts(); }
   if(id==='mb-user')     loadMbUser();
   if(id==='mb-admin')    loadMbAdmin();
   if(id==='mb-stats')    loadMbStats();
@@ -1671,28 +1609,38 @@ async function loadHome(){
   body.innerHTML = html || '<div class="empty">오늘 현황이 없습니다.</div>';
   renderHomeJolgi(body, html);
 
-  // 관리자 전용: 블로그·협찬 요약 백그라운드 로드
+  // 관리자 전용: 협찬·블로그 요약 백그라운드 로드
   if(isAdmin){
-    // 협찬 포스팅 마감 임박
+    // 협찬 포스팅 현황
     apiGet(GAS_A,{action:'get_sponsors'}).then(sRes=>{
       const sponsors=sRes?.sponsors||[];
+      const active=sponsors.filter(s=>!s.done);
+      if(!active.length) return;
       const today=todayStr();
-      const urgent=sponsors.filter(s=>!s.done&&s.dueDate&&s.dueDate<=today);
-      const soon=sponsors.filter(s=>!s.done&&s.dueDate&&s.dueDate>today);
-      if(!urgent.length&&!soon.length) return;
+      const urgent=active.filter(s=>s.dueDate&&s.dueDate<=today);
       const section=document.createElement('div');
       section.className='brief-section';
-      section.innerHTML=`<div class="brief-section-title">🤝 협찬 포스팅</div>`+
-        urgent.map(s=>`<div class="list-item">
-          <div class="list-main"><div class="list-title">${esc(s.brand)}</div><div class="list-sub">${fmtDate(s.dueDate)}</div></div>
+      section.innerHTML=`<div class="brief-section-title">🤝 협찬 포스팅 <span style="font-size:11px;color:var(--dim)">(진행중 ${active.length}건)</span></div>`+
+        (urgent.length ? urgent.map(s=>`<div class="list-item">
+          <div class="list-main"><div class="list-title">${esc(s.brand||'')}</div><div class="list-sub">마감: ${fmtDate(s.dueDate)}</div></div>
           <span class="tag tag-r">마감!</span>
-        </div>`).join('')+
-        soon.slice(0,2).map(s=>`<div class="list-item">
-          <div class="list-main"><div class="list-title">${esc(s.brand)}</div></div>
-          <span class="tag tag-o">${fmtDate(s.dueDate)}</span>
-        </div>`).join('');
+        </div>`).join('') : active.slice(0,3).map(s=>`<div class="list-item">
+          <div class="list-main"><div class="list-title">${esc(s.brand||'')}</div></div>
+          ${s.dueDate?`<span class="tag tag-gold">${fmtDate(s.dueDate)}</span>`:''}
+        </div>`).join(''));
       body.appendChild(section);
     }).catch(()=>{});
+
+    // 블로그 관리대행 현황 (캐시된 경우)
+    if(_blogClients&&_blogClients.length){
+      const today=todayD();
+      const overdue=(_blogLogs||[]).filter(t=>t.status==='발행전'&&!t.category?.includes('결제')&&daysDiff(t.date,today)<=0);
+      const section=document.createElement('div');
+      section.className='brief-section';
+      section.innerHTML=`<div class="brief-section-title">📝 블로그 관리대행 <span style="font-size:11px;color:var(--dim)">(${_blogClients.filter(c=>(c.status||'').includes('진행')).length}명 진행중)</span></div>`+
+        (overdue.length ? `<div class="list-item"><div class="list-main"><div class="list-title" style="color:var(--red)">⚠ 발행 지연 ${overdue.length}건</div></div></div>` : `<div class="brief-empty">발행 지연 없음</div>`);
+      body.appendChild(section);
+    }
   }
 
   // 만료 임박 박스 백그라운드 로드
@@ -2089,9 +2037,6 @@ function openOrderModal(id=null){
   document.getElementById('ord-due').value='';
   document.getElementById('ord-detail').value='';
   document.getElementById('ord-receiver').value='';
-  // 거래처 자동완성
-  const dl=document.getElementById('contact-list');
-  if(dl){dl.innerHTML=_contacts.map(c=>`<option value="${esc(c.name)}">`).join('');}
   // 품목 초기화
   const wrap=document.getElementById('ord-items-wrap');
   wrap.innerHTML='';
@@ -2457,84 +2402,11 @@ async function deleteRefund(id){
 // ════════════════════════════════
 //  거래처 주소록
 // ════════════════════════════════
-async function loadContacts(){
-  const res=await apiGet(GAS_B,{action:'list_contacts'});
-  if(res?.ok) _contacts=res.contacts||[];
-  renderContacts();
-  const dl=document.getElementById('contact-list');
-  if(dl) dl.innerHTML=_contacts.map(c=>`<option value="${esc(c.name)}">`).join('');
+async function mbApiGet(params){ return await apiFetch(GAS_C, {...params, _t:Date.now()}); }
+async function mbApiPost(body){
+  // MB POST는 응답이 필요한 경우 프록시를 통해 읽음
+  return await apiFetch(GAS_C, null, 'POST', body, true);
 }
-
-function renderContacts(){
-  const body=document.getElementById('contact-body');
-  if(!body) return;
-  if(!_contacts.length){body.innerHTML='<div class="empty">등록된 거래처가 없습니다.</div>';return;}
-  body.innerHTML=`<div class="doc-list">`+_contacts.map(c=>`
-    <div class="doc-item">
-      <div style="font-size:18px;width:36px;text-align:center;flex-shrink:0">🏢</div>
-      <div class="doc-info">
-        <div class="doc-name">${esc(c.name)}</div>
-        <div class="doc-meta">${c.manager?esc(c.manager)+' · ':''}${c.tel?esc(c.tel)+'  ':''} ${c.email?esc(c.email):''}</div>
-        ${c.address?`<div class="doc-meta">${esc(c.address)}</div>`:''}
-      </div>
-      <div class="doc-actions">
-        <button class="btn btn-ghost btn-sm" onclick="openContactModal('${c.id}')">수정</button>
-        <button class="btn btn-red btn-sm" onclick="deleteContact('${c.id}')">삭제</button>
-      </div>
-    </div>`).join('')+'</div>';
-}
-
-function openContactModal(id=null){
-  _editId=id;
-  const c=id?_contacts.find(x=>x.id===id):null;
-  document.getElementById('contact-modal-title').textContent=id?'거래처 수정':'거래처 추가';
-  document.getElementById('ct-name').value=c?.name||'';
-  document.getElementById('ct-manager').value=c?.manager||'';
-  document.getElementById('ct-tel').value=c?.tel||'';
-  document.getElementById('ct-email').value=c?.email||'';
-  document.getElementById('ct-address').value=c?.address||'';
-  document.getElementById('ct-memo').value=c?.memo||'';
-  document.getElementById('ct-id').value=id||'';
-  openModal('contact-modal');
-}
-
-async function saveContact(){
-  const name=document.getElementById('ct-name').value.trim();
-  if(!name){alert('거래처명을 입력해주세요.');return;}
-  closeModal('contact-modal');
-  apiPost(GAS_B,{
-    action:'save_contact',
-    id:document.getElementById('ct-id').value||'',
-    name,
-    manager:document.getElementById('ct-manager').value,
-    tel:document.getElementById('ct-tel').value,
-    email:document.getElementById('ct-email').value,
-    address:document.getElementById('ct-address').value,
-    memo:document.getElementById('ct-memo').value,
-  });
-  reloadTo('contact');
-}
-
-async function deleteContact(id){
-  if(!confirm('이 거래처를 삭제하시겠습니까?')) return;
-  apiPost(GAS_B,{action:'delete_contact',id});
-  reloadTo('contact');
-}
-
-// ════════════════════════════════
-//  미스테리박스 (GAS C 재사용)
-// ════════════════════════════════
-let mbCurrentBox=null, mbVault=[];
-try{mbVault=JSON.parse(localStorage.getItem('sv4-mb-vault')||'[]');}catch(_){}
-
-const MB_GRADES=[
-  {grade:'SSS',pct:0.0001},{grade:'SS',pct:0.001},{grade:'S',pct:0.1},
-  {grade:'A',pct:1},{grade:'B',pct:3},{grade:'C',pct:10},
-  {grade:'D',pct:20},{grade:'E',pct:30},{grade:'F',pct:35.8989},
-];
-
-async function mbApiGet(params){ return await apiFetch(GAS_C, params); }
-async function mbApiPost(body){ return await apiFetch(GAS_C, null, 'POST', body); }
 
 async function loadMbUser(){
   const body=document.getElementById('mb-user-body');
@@ -2607,10 +2479,20 @@ async function mbClaimBox(){
   setTimeout(()=>{if(st)st.textContent='';},3500);
 }
 
+// localStorage 기반 꽝 카운트 (GAS C 연동 보완)
+function getLocalFailCount(){ try{return parseInt(localStorage.getItem('sv4-mb-fail-'+_user.code)||'0');}catch(_){return 0;}}
+function setLocalFailCount(n){ try{localStorage.setItem('sv4-mb-fail-'+_user.code,String(n));}catch(_){}}
+function incLocalFailCount(){ setLocalFailCount(getLocalFailCount()+1); }
+function resetLocalFailCount(){ setLocalFailCount(0); }
+
 async function mbLoadFailCount(){
   const wrap=document.getElementById('mb-synthesis-wrap');
-  const res=await mbApiGet({action:'failCount',recipientName:_user.name});
-  const count=res?.count??0;
+  // GAS C 서버 카운트 시도, 실패 시 로컬 카운트 사용
+  let count=getLocalFailCount();
+  try{
+    const res=await mbApiGet({action:'failCount',recipientName:_user.name});
+    if(res?.count!=null) count=Math.max(res.count, count); // 더 큰 값 사용
+  }catch(_){}
   if(wrap) wrap.style.display='block';
   const badge=document.getElementById('mb-fail-badge');
   const bar=document.getElementById('mb-fail-bar');
@@ -2647,6 +2529,7 @@ async function mbSynthesize(){
   for(const g of coffeePool){r-=g.pct;if(r<=0){prize={grade:g.grade,item:g.list[0]};break;}}
   const res=await mbApiPost({action:'synthesize',recipientName:_user.name,grade:prize.grade,item:prize.item});
   if(!res?.ok){alert('합성 실패: '+(res?.error||'서버 오류'));mbLoadFailCount();return;}
+  resetLocalFailCount(); // 로컬 꽝 카운트 리셋
   mbVault.unshift({grade:prize.grade,item:prize.item,boxName:'🔮 꽝 합성',date:todayStr()});
   try{localStorage.setItem('sv4-mb-vault',JSON.stringify(mbVault.slice(0,50)));}catch(_){}
   mbRenderVault();
@@ -2886,7 +2769,10 @@ async function mbDoOpen(){
   // vault 저장 (꽝 제외하고 기록, 꽝은 카운트만)
   const isFail=prize.grade==='F'||prize.item==='꽝';
   const pi=mbVault.findIndex(v=>v.pending&&v.uuid===box.uuid);
-  if(isFail){if(pi>=0)mbVault.splice(pi,1);}
+  if(isFail){
+    if(pi>=0)mbVault.splice(pi,1);
+    incLocalFailCount(); // 로컬 꽝 카운트 증가
+  }
   else{const result={grade:prize.grade,item:prize.item,boxName:box.name||'',date:todayStr()};if(pi>=0)mbVault[pi]=result;else mbVault.unshift(result);}
   try{localStorage.setItem('sv4-mb-vault',JSON.stringify(mbVault.slice(0,50)));}catch(_){}
   mbRenderVault();
@@ -2917,7 +2803,7 @@ async function loadMbAdmin(){
     </div>
     ${filtered.length?`<div class="doc-list">`+filtered.map(b=>{
       const exp=isExpired(b);
-      const active=!b.status||(b.status==='활성')||(b.status==='active');
+      const active=(b.status||'').trim()==='활성';
       const status=!active?'<span class="tag tag-dim">비활성</span>':exp?'<span class="tag tag-r">만료</span>':'<span class="tag tag-g">활성</span>';
       const ratio=b.limit?`${b.claimCount||b.openCount||0}/${b.limit}`:`${b.openCount||0}/무제한`;
       return `<div class="doc-item">
@@ -2945,8 +2831,18 @@ function mbCopyUuid(uuid, boxName, expires){
     .then(()=>alert('박스 코드가 복사됐습니다!\n\n카카오톡에 붙여넣기 하세요.'))
     .catch(()=>alert(text));
 }
-async function mbDeactivate(uuid){if(!confirm('비활성화하시겠습니까?'))return;await mbApiPost({action:'deactivate',uuid});loadMbAdmin();}
-async function mbDeleteBox(uuid){if(!confirm('이 박스를 삭제하시겠습니까?\n삭제 시 복구되지 않습니다.'))return;await mbApiPost({action:'delete',uuid});loadMbAdmin();}
+async function mbDeactivate(uuid){
+  if(!confirm('비활성화하시겠습니까?'))return;
+  showLoading('처리 중…');
+  await mbApiPost({action:'deactivate',uuid});
+  reloadTo('mb-admin',2000);
+}
+async function mbDeleteBox(uuid){
+  if(!confirm('이 박스를 삭제하시겠습니까?\n삭제 시 복구되지 않습니다.'))return;
+  showLoading('삭제 중…');
+  await mbApiPost({action:'delete',uuid});
+  reloadTo('mb-admin',2000);
+}
 
 // MB 통계
 async function loadMbStats(){
@@ -3803,7 +3699,7 @@ function openMbCreateModal(){
             <label for="mb-c-showItems" style="font-size:13px;color:var(--mid);cursor:pointer">상품목록 공개</label>
           </div>
           <div class="form-field" style="display:flex;align-items:center;gap:8px;padding-top:20px">
-            <input type="checkbox" id="mb-c-allowBlank" style="width:16px;height:16px;cursor:pointer">
+            <input type="checkbox" id="mb-c-allowBlank" style="width:16px;height:16px;cursor:pointer" onchange="mbToggleBlankGrade(this.checked)">
             <label for="mb-c-allowBlank" style="font-size:13px;color:var(--mid);cursor:pointer">꽝 포함</label>
           </div>
         </div>
@@ -3840,10 +3736,10 @@ function mbAddGrade(gradeVal=''){
 }
 
 const MB_TEMPLATES={
-  coffee:{name:'커피쿠폰 박스',animType:'capsule',allowBlank:true,showItems:true,items:[
+  coffee:{name:'커피쿠폰 박스',animType:'capsule',allowBlank:false,showItems:true,items:[
     {grade:'SSS',items:['자유롭게 음료 한 잔']},{grade:'SS',items:['스무디급 음료 한 잔']},
     {grade:'S',items:['라떼급 음료 한 잔']},{grade:'A',items:['아메리카노+사이즈업']},
-    {grade:'B',items:['아메리카노']},{grade:'F',items:['꽝']}
+    {grade:'B',items:['아메리카노']}
   ]},
   meal:{name:'식사쿠폰 박스',animType:'box',allowBlank:false,showItems:true,items:[
     {grade:'SSS',items:['한우 한 끼']},{grade:'SS',items:['고기집 한 끼']},
@@ -3855,10 +3751,10 @@ const MB_TEMPLATES={
     {grade:'S',items:['편의점 상품권 1만원']},{grade:'A',items:['문화상품권 5천원']},
     {grade:'B',items:['간식 세트']}
   ]},
-  event:{name:'이벤트 박스',animType:'roulette',allowBlank:true,showItems:true,items:[
+  event:{name:'이벤트 박스',animType:'roulette',allowBlank:false,showItems:true,items:[
     {grade:'SSS',items:['대박 경품!']},{grade:'SS',items:['특별 경품']},
     {grade:'S',items:['경품 A']},{grade:'A',items:['경품 B']},
-    {grade:'B',items:['참가상']},{grade:'F',items:['꽝']}
+    {grade:'B',items:['참가상']}
   ]}
 };
 
@@ -3886,9 +3782,21 @@ function mbApplyTemplate(key){
   }
 }
 
+function mbToggleBlankGrade(checked){
+  const wrap=document.getElementById('mb-c-grades-wrap');
+  if(!wrap) return;
+  const existing=[...wrap.children].find(div=>div.querySelector('.mb-grade-sel')?.value==='F');
+  if(checked && !existing){
+    mbAddGrade('F');
+    const lastTA=wrap.lastElementChild?.querySelector('.mb-grade-items');
+    if(lastTA) lastTA.value='꽝';
+  } else if(!checked && existing){
+    existing.remove();
+  }
+}
+
 function mbOpenCreateFromTemplate(jsonStr){
   try{
-    const b=JSON.parse(jsonStr);
     openMbCreateModal();
     setTimeout(()=>{
       const nameEl=document.getElementById('mb-c-name');
@@ -3937,12 +3845,15 @@ async function mbSubmitCreate(){
   document.getElementById('mb-create-overlay')?.remove();
   showLoading('박스 생성 중…');
   const res=await mbApiPost(payload);
-  hideLoading();
   if(res?.ok){
-    alert(`✅ 박스 생성 완료!\nUUID: ${res.uuid}`);
-    reloadTo('mb-admin');
+    const uuid=res.uuid||'';
+    if(uuid) alert(`✅ 박스 생성 완료!\nUUID: ${uuid}`);
+    else alert('✅ 박스 생성 완료!');
+    reloadTo('mb-admin', 3000); // GAS 처리 시간 여유를 위해 3초
   } else {
-    alert('박스 생성 실패: '+(res?.error||'서버 오류'));
+    hideLoading();
+    alert('박스 생성 실패: '+(res?.error||'서버 오류. 잠시 후 목록에서 확인해주세요.'));
+    reloadTo('mb-admin', 3000);
   }
 }
 
@@ -4042,14 +3953,15 @@ function openAchieveDefModal(id=null){
 }
 
 async function saveAchieveDef(){
+  // 8번: 모달 제거 전에 모든 값을 먼저 읽어야 함
   const name=document.getElementById('ach-name')?.value.trim();
   if(!name){alert('업적명을 입력해주세요.');return;}
   const id=document.getElementById('ach-edit-id')?.value||'';
-  document.querySelector('.modal-overlay.show')?.remove();
-  await apiPost(GAS_A,{action:'update_achieve_def',id,name,
-    icon:document.getElementById('ach-icon')?.value||'🏆',
-    condType:document.getElementById('ach-cond-type')?.value||'',
-    condValue:parseInt(document.getElementById('ach-cond-val')?.value)||1,active:true});
+  const icon=document.getElementById('ach-icon')?.value||'🏆';
+  const condType=document.getElementById('ach-cond-type')?.value||'';
+  const condValue=parseInt(document.getElementById('ach-cond-val')?.value)||1;
+  document.querySelector('.modal-overlay.show')?.remove(); // 값 다 읽은 후에 제거
+  await apiPost(GAS_A,{action:'update_achieve_def',id,name,icon,condType,condValue,active:true});
   reloadTo('achieve-admin');
 }
 
@@ -4089,12 +4001,12 @@ function printOrderData(o){
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:20mm 15mm;color:#000;font-size:11px;width:210mm;height:297mm;overflow:hidden}
-    .top-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
+    .top-row{display:block;margin-bottom:5px;overflow:hidden}
     h1{font-size:26px;font-weight:900;letter-spacing:6px;line-height:1}
-    .sign-table{border-collapse:collapse;font-size:9px}
-    .sign-table td{border:1px solid #000;padding:2px 2px;text-align:center;width:22px;vertical-align:top}
-    .sign-table .label{background:#f5f5f5;font-weight:700;height:14px}
-    .sign-table .body-cell{height:36px}
+    .sign-table{border-collapse:collapse;font-size:8px;float:right}
+    .sign-table td{border:1px solid #000;padding:1px 2px;text-align:center;width:16px;vertical-align:top}
+    .sign-table .label{background:#f5f5f5;font-weight:700;height:12px}
+    .sign-table .body-cell{height:30px}
     .meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:11px}
     .meta-item{padding:5px 8px;border:1px solid #ddd;background:#f9f9f9}
     .meta-label{font-size:10px;color:#666;margin-bottom:2px}
@@ -4147,12 +4059,12 @@ async function printRefundById(id){
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>반환금처리대장</title>
   <style>*{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:15mm 12mm;color:#000;font-size:10px;width:210mm;height:297mm;overflow:hidden}
-    .top-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
+    .top-row{display:block;margin-bottom:5px;overflow:hidden}
     h1{font-size:22px;font-weight:900;letter-spacing:5px;line-height:1}
-    .sign-table{border-collapse:collapse;font-size:9px}
-    .sign-table td{border:1px solid #000;padding:2px 2px;text-align:center;width:22px;vertical-align:top}
-    .sign-table .label{background:#f5f5f5;font-weight:700;height:14px}
-    .sign-table .body-cell{height:36px}
+    .sign-table{border-collapse:collapse;font-size:8px;float:right}
+    .sign-table td{border:1px solid #000;padding:1px 2px;text-align:center;width:16px;vertical-align:top}
+    .sign-table .label{background:#f5f5f5;font-weight:700;height:12px}
+    .sign-table .body-cell{height:30px}
     .meta-row{display:flex;gap:20px;font-size:11px;margin-bottom:7px;padding:4px 8px;background:#f9f9f9;border:1px solid #ddd}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #888;padding:2px 4px;font-size:9.5px;overflow:hidden}
@@ -4212,12 +4124,12 @@ function printExpenseData(e){
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:20mm 15mm;color:#000;font-size:11px;width:210mm;height:297mm;overflow:hidden}
-    .top-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
+    .top-row{display:block;margin-bottom:5px;overflow:hidden}
     h1{font-size:26px;font-weight:900;letter-spacing:6px;line-height:1}
-    .sign-table{border-collapse:collapse;font-size:9px}
-    .sign-table td{border:1px solid #000;padding:2px 2px;text-align:center;width:22px;vertical-align:top}
-    .sign-table .label{background:#f5f5f5;font-weight:700;height:14px}
-    .sign-table .body-cell{height:36px}
+    .sign-table{border-collapse:collapse;font-size:8px;float:right}
+    .sign-table td{border:1px solid #000;padding:1px 2px;text-align:center;width:16px;vertical-align:top}
+    .sign-table .label{background:#f5f5f5;font-weight:700;height:12px}
+    .sign-table .body-cell{height:30px}
     .meta-row{display:flex;gap:20px;font-size:11px;margin-bottom:8px;padding:5px 8px;background:#f9f9f9;border:1px solid #ddd}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #888;padding:3px 5px;font-size:10px;overflow:hidden}
@@ -4291,12 +4203,12 @@ function printRefund(){
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:15mm 12mm;color:#000;font-size:10px;width:210mm;height:297mm;overflow:hidden}
-    .top-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
+    .top-row{display:block;margin-bottom:5px;overflow:hidden}
     h1{font-size:22px;font-weight:900;letter-spacing:5px;line-height:1}
-    .sign-table{border-collapse:collapse;font-size:9px}
-    .sign-table td{border:1px solid #000;padding:2px 2px;text-align:center;width:22px;vertical-align:top}
-    .sign-table .label{background:#f5f5f5;font-weight:700;height:14px}
-    .sign-table .body-cell{height:36px}
+    .sign-table{border-collapse:collapse;font-size:8px;float:right}
+    .sign-table td{border:1px solid #000;padding:1px 2px;text-align:center;width:16px;vertical-align:top}
+    .sign-table .label{background:#f5f5f5;font-weight:700;height:12px}
+    .sign-table .body-cell{height:30px}
     .meta-row{display:flex;gap:20px;font-size:11px;margin-bottom:7px;padding:4px 8px;background:#f9f9f9;border:1px solid #ddd}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #888;padding:2px 4px;font-size:9.5px;overflow:hidden}
