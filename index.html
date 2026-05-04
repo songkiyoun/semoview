@@ -1538,6 +1538,9 @@ async function loadHome(){
   document.getElementById('home-date').textContent =
     today.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
 
+  const isAdmin = (_user.grade||'').toLowerCase().trim() === 'admin';
+  const memberMap={};_members.forEach(m=>memberMap[m.code]=m.name);
+
   let html = '';
 
   // 미읽은 공지 배너
@@ -1554,17 +1557,14 @@ async function loadHome(){
     </div>`;
   });
 
-  // 오늘 일정
-  const todayEvents = _events.filter(ev=>{
-    const start = ev.startAt?.slice(0,10)||ev.date||'';
-    return start === todayStr();
-  });
+  // 오늘 일정 (캐시된 _events 사용)
+  const todayEvents = _events.filter(ev=>(ev.startAt||'').slice(0,10)===todayStr());
   html+=`<div class="brief-section">
     <div class="brief-section-title">📅 오늘 일정</div>
     ${todayEvents.length
       ? todayEvents.map(ev=>`<div class="list-item">
           <div class="list-main">
-            <div class="list-title">${esc(ev.title)}</div>
+            <div class="list-title">${esc(ev.title)}${ev.code&&ev.code!==_user.code?` <span style="font-size:11px;color:var(--gold)">(${esc(memberMap[ev.code]||ev.code)})</span>`:''}</div>
             <div class="list-sub">${ev.startAt?fmtDateTime(ev.startAt):''} ${ev.place?'· '+esc(ev.place):''}</div>
           </div>
           <span class="tag tag-b">${esc(ev.type)}</span>
@@ -1572,11 +1572,9 @@ async function loadHome(){
       : '<div class="brief-empty">오늘 일정이 없습니다.</div>'}
   </div>`;
 
-  // 오늘 휴무인 팀원 (관리자만 볼 수 있음)
-  if(_user.grade==='admin'){
-    const allEvRes = await apiGet(GAS_A,{action:'get_all_events'});
-    const memberMap={};_members.forEach(m=>memberMap[m.code]=m.name);
-    const holToday = (allEvRes?.events||[]).filter(ev=>{
+  // 오늘 휴무인 팀원 (관리자: 이미 로드된 _events에 전원 포함)
+  if(isAdmin){
+    const holToday = _events.filter(ev=>{
       const start=ev.startAt?.slice(0,10)||'';
       return start===todayStr() && (ev.type==='휴무'||ev.type==='오전휴무'||ev.type==='오후휴무') && ev.code!==_user.code;
     });
@@ -1599,36 +1597,14 @@ async function loadHome(){
       ? urgentTodos.map(t=>`<div class="list-item">
           <div class="list-main">
             <div class="list-title"><span class="todo-pri pri-${t.priority==='높음'?'high':t.priority==='중간'?'mid':'low'}"></span>${esc(t.content)}</div>
-            ${t.sender?`<div class="list-sub">📌 ${esc(_members.find(m=>m.code===t.sender)?.name||t.sender)}님 요청</div>`:''}
+            ${t.sender?`<div class="list-sub">📌 ${esc(memberMap[t.sender]||t.sender)}님 요청</div>`:''}
           </div>
         </div>`).join('')
       : '<div class="brief-empty">오늘 마감 할일이 없습니다.</div>'}
   </div>`;
 
-  // 관리자 전용: 만료 임박 박스
-  if(_user.grade==='admin'){
-    const mbRes = await apiGet(GAS_C,{action:'list'});
-    const today=new Date(); today.setHours(0,0,0,0);
-    const expiring=(mbRes?.boxes||[]).filter(b=>{
-      if(!b.expires||b.status!=='활성')return false;
-      const exp=new Date(b.expires);exp.setHours(23,59,59);
-      const diff=Math.ceil((exp-today)/(1000*60*60*24));
-      return diff>=0&&diff<=3;
-    });
-    if(expiring.length){
-      html+=`<div class="brief-section">
-        <div class="brief-section-title">⚠ 만료 임박 박스</div>
-        ${expiring.map(b=>{
-          const exp=new Date(b.expires);exp.setHours(23,59,59);
-          const diff=Math.ceil((exp-today)/(1000*60*60*24));
-          return `<div class="list-item">
-            <div class="list-main"><div class="list-title">${esc(b.name)}</div></div>
-            <span class="tag tag-r">D-${diff}</span>
-          </div>`;
-        }).join('')}
-      </div>`;
-    }
-    // 마음의소리 미확인
+  // 관리자 전용: 마음의소리 미확인
+  if(isAdmin){
     const mapeonUnread=_noticeCache.filter(n=>n.type==='마음의소리'&&!n.read).length;
     if(mapeonUnread){
       html+=`<div class="brief-section">
@@ -1642,6 +1618,28 @@ async function loadHome(){
   }
 
   body.innerHTML = html || '<div class="empty">오늘 현황이 없습니다.</div>';
+
+  // 만료 임박 박스는 백그라운드에서 따로 로드 (홈 차단 안 함)
+  if(isAdmin){
+    mbApiGet({action:'list'}).then(mbRes=>{
+      const now=new Date();now.setHours(0,0,0,0);
+      const expiring=(mbRes?.boxes||[]).filter(b=>{
+        if(!b.expires||b.status!=='활성')return false;
+        const exp=new Date(b.expires);exp.setHours(23,59,59);
+        return Math.ceil((exp-now)/(1000*60*60*24))<=3;
+      });
+      if(!expiring.length) return;
+      const section=document.createElement('div');
+      section.className='brief-section';
+      section.innerHTML=`<div class="brief-section-title">⚠ 만료 임박 박스</div>`+
+        expiring.map(b=>{
+          const exp=new Date(b.expires);exp.setHours(23,59,59);
+          const diff=Math.ceil((exp-now)/(1000*60*60*24));
+          return `<div class="list-item"><div class="list-main"><div class="list-title">${esc(b.name)}</div></div><span class="tag tag-r">D-${diff}</span></div>`;
+        }).join('');
+      body.appendChild(section);
+    }).catch(()=>{});
+  }
 }
 
 // ════════════════════════════════
@@ -2782,7 +2780,8 @@ async function loadMbAdmin(){
           <div class="doc-meta" style="font-size:10px;color:rgba(255,255,255,.2)">${b.uuid}</div>
         </div>
         <div class="doc-actions">
-          <button class="btn btn-ghost btn-sm" onclick="mbCopyUuid('${b.uuid}')">📋</button>
+          <button class="btn btn-ghost btn-sm" onclick="mbCopyUuid('${b.uuid}','${esc(b.name)}','${b.expires||''}')">📋 코드복사</button>
+          <button class="btn btn-ghost btn-sm" onclick="mbOpenCreateFromTemplate(${JSON.stringify(JSON.stringify(b))})">📄 템플릿</button>
           ${active&&!exp?`<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="mbDeactivate('${b.uuid}')">비활성화</button>`:''}
           <button class="btn btn-red btn-sm" onclick="mbDeleteBox('${b.uuid}')">삭제</button>
         </div>
@@ -2792,7 +2791,13 @@ async function loadMbAdmin(){
 }
 
 function setMbFilter(f){_mbBoxFilter=f;loadMbAdmin();}
-function mbCopyUuid(uuid){navigator.clipboard.writeText(uuid).then(()=>alert('UUID 복사됨')).catch(()=>alert(uuid));}
+function mbCopyUuid(uuid, boxName, expires){
+  const expStr = expires ? expires+'까지 갓차박스 오픈 가능' : '기간 제한 없음';
+  const text = `≻───── ⋆✩⋆ ─────≺\n세모뷰 데일리\n${boxName||'미스테리박스'}\n║█║▌║█║▌│║▌║▌█║║█║▌║█║▌\n${expStr}\n${uuid}\n≻───── ⋆✩⋆ ─────≺`;
+  navigator.clipboard.writeText(text)
+    .then(()=>alert('박스 코드가 복사됐습니다!\n\n카카오톡에 붙여넣기 하세요.'))
+    .catch(()=>alert(text));
+}
 async function mbDeactivate(uuid){if(!confirm('비활성화하시겠습니까?'))return;await mbApiPost({action:'deactivate',uuid});loadMbAdmin();}
 async function mbDeleteBox(uuid){if(!confirm('이 박스를 삭제하시겠습니까?\n삭제 시 복구되지 않습니다.'))return;await mbApiPost({action:'delete',uuid});loadMbAdmin();}
 
@@ -3112,15 +3117,28 @@ function renderJolgimun(csv, body){
     <div class="kpi-card"><div class="kpi-label">이번달 완료율</div><div class="kpi-val">${thisMonthTotal?Math.round(thisMonthDone/thisMonthTotal*100)+'%':'—'}</div><div class="kpi-sub">${thisMonthDone}/${thisMonthTotal}건</div></div>
   </div>`;
 
-  // 영업담당 드릴다운
+  // 영업담당 드릴다운 (클릭시 하위 클라이언트 펼치기)
   const byMgr={};
   clients.forEach(c=>{const m=c.manager||'미지정';if(!byMgr[m])byMgr[m]=[];byMgr[m].push(c);});
   html+=`<div class="card" style="margin-bottom:12px"><div class="card-title">👤 영업담당자</div>`;
   Object.entries(byMgr).forEach(([m,cs])=>{
     const active=cs.filter(c=>c.txtRemain>0||c.carRemain>0);
-    html+=`<div class="list-item">
-      <div class="list-main"><div class="list-title">${esc(m)}</div>
-      <div class="list-sub">진행 ${active.length}명 / 전체 ${cs.length}명</div></div>
+    const safeId=`jmgr-${m.replace(/\s/g,'_')}`;
+    html+=`<div style="border-bottom:1px solid rgba(255,255,255,.05)">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer"
+        onclick="const d=document.getElementById('${safeId}');d.style.display=d.style.display==='none'?'block':'none'">
+        <div style="flex:1"><span style="font-size:14px;font-weight:700;color:#fff">${esc(m)}</span></div>
+        ${active.length?`<span class="tag tag-g">진행 ${active.length}명</span>`:''}
+        ${cs.filter(c=>!c.txtRemain&&!c.carRemain).length?`<span class="tag tag-dim">종료 ${cs.filter(c=>!c.txtRemain&&!c.carRemain).length}명</span>`:''}
+        <span style="color:var(--dim);font-size:12px">▾</span>
+      </div>
+      <div id="${safeId}" style="display:none;padding:0 0 10px 10px">
+        ${cs.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04)">
+          <div style="flex:1;color:var(--mid)">${esc(c.name)}</div>
+          ${c.txtTotal?`<span style="font-size:11px;padding:2px 8px;border-radius:5px;${c.txtRemain>0?'background:rgba(95,207,133,.12);color:var(--green);border:1px solid rgba(95,207,133,.25)':'background:rgba(255,255,255,.05);color:var(--dim);border:1px solid var(--b)'}">문자 ${c.txtRemain>0?'잔여 '+c.txtRemain+'건':'완료'}</span>`:''}
+          ${c.carTotal?`<span style="font-size:11px;padding:2px 8px;border-radius:5px;${c.carRemain>0?'background:rgba(91,155,213,.12);color:var(--blue);border:1px solid rgba(91,155,213,.25)':'background:rgba(255,255,255,.05);color:var(--dim);border:1px solid var(--b)'}">카드 ${c.carRemain>0?'잔여 '+c.carRemain+'건':'완료'}</span>`:''}
+        </div>`).join('')}
+      </div>
     </div>`;
   });
   html+=`</div>`;
@@ -3486,7 +3504,33 @@ function mbAddGrade(gradeVal=''){
   wrap.appendChild(div);
 }
 
-async function mbSubmitCreate(){
+function mbOpenCreateFromTemplate(jsonStr){
+  try{
+    const b=JSON.parse(jsonStr);
+    openMbCreateModal();
+    setTimeout(()=>{
+      const nameEl=document.getElementById('mb-c-name');
+      if(nameEl) nameEl.value=b.name||'';
+      const animEl=document.getElementById('mb-c-anim');
+      if(animEl) animEl.value=b.animType||'box';
+      const showEl=document.getElementById('mb-c-showItems');
+      if(showEl) showEl.checked=b.showItems||false;
+      const blankEl=document.getElementById('mb-c-allowBlank');
+      if(blankEl) blankEl.checked=b.allowBlank||false;
+      const wrap=document.getElementById('mb-c-grades-wrap');
+      if(wrap&&b.items){
+        wrap.innerHTML='';
+        let items=b.items;
+        if(typeof items==='string') try{items=JSON.parse(items);}catch(_){items=[];}
+        (items||[]).forEach(g=>{
+          mbAddGrade(g.grade||'B');
+          const lastTA=wrap.lastElementChild?.querySelector('.mb-grade-items');
+          if(lastTA) lastTA.value=(g.items||g.names||[]).join('\n');
+        });
+      }
+    },150);
+  }catch(e){ console.error('템플릿 오류',e); }
+}
   const name=document.getElementById('mb-c-name')?.value.trim();
   if(!name){alert('박스 이름을 입력해주세요.');return;}
   const grades=[...document.querySelectorAll('#mb-c-grades-wrap > div')].map(div=>({
@@ -3542,27 +3586,76 @@ function printExpense(){
 }
 
 function printExpenseData(e){
-  const rows=e.items.map(i=>`<tr>
-    <td>${esc(i.account)}</td><td>${esc(i.summary)}</td><td style="text-align:right">${Number(i.amount||0).toLocaleString()}원</td>
-    <td>${esc(i.bank)}</td><td>${esc(i.accountNo)}</td><td>${esc(i.holder)}</td>
+  const MIN_ROWS=7;
+  let items=[...(e.items||[])];
+  while(items.length<MIN_ROWS) items.push({account:'',summary:'',amount:'',bank:'',accountNo:'',holder:''});
+  const rows=items.map(i=>`<tr>
+    <td>${esc(i.account||'')}</td>
+    <td>${esc(i.summary||'')}</td>
+    <td style="text-align:right">${i.amount?Number(i.amount).toLocaleString()+'원':''}</td>
+    <td>${esc(i.bank||'')}</td>
+    <td>${esc(i.accountNo||'')}</td>
+    <td>${esc(i.holder||'')}</td>
   </tr>`).join('');
-  const w=window.open('','_blank','width=800,height=600');
+  const w=window.open('','_blank','width=794,height=1123');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>지출결의서</title>
-  <style>body{font-family:'Noto Sans KR',sans-serif;padding:40px;color:#000;font-size:13px}
-  h2{text-align:center;margin-bottom:24px;font-size:20px}
-  .meta{display:flex;gap:30px;margin-bottom:20px;font-size:13px}
-  table{width:100%;border-collapse:collapse;margin-bottom:16px}
-  th,td{border:1px solid #333;padding:7px 10px;text-align:left;font-size:12px}
-  th{background:#f5f5f5;font-weight:700}
-  .total{text-align:right;font-size:15px;font-weight:700;margin-bottom:16px}
-  .memo{font-size:12px;color:#555;margin-top:8px}
-  @media print{body{padding:20px}}</style></head><body>
-  <h2>지 출 결 의 서</h2>
-  <div class="meta"><span>기안자: <strong>${esc(e.drafter)}</strong></span><span>작성일: <strong>${fmtDate(e.createdAt)}</strong></span></div>
-  <table><thead><tr><th>계정과목</th><th>적요</th><th>금액</th><th>은행명</th><th>계좌번호</th><th>예금주</th></tr></thead>
-  <tbody>${rows}</tbody></table>
-  <div class="total">합계: ${Number(e.total||0).toLocaleString()}원</div>
-  ${e.memo?`<div class="memo">메모: ${esc(e.memo)}</div>`:''}
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:30mm 20mm;color:#000;font-size:12px;width:210mm;min-height:297mm}
+    h1{font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;margin-bottom:20px}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+    .meta{font-size:12px;line-height:2}
+    .sign-table{border-collapse:collapse;font-size:11px}
+    .sign-table td{border:1px solid #000;padding:4px 8px;text-align:center;min-width:52px;height:44px;vertical-align:top}
+    .sign-table .label{background:#f5f5f5;font-weight:700;height:22px;padding:2px 8px}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    th,td{border:1px solid #666;padding:6px 8px;font-size:11px}
+    th{background:#f0f0f0;font-weight:700;text-align:center}
+    td{text-align:left}
+    .total-row td{font-weight:700;background:#f9f9f9}
+    .memo{font-size:11px;margin-top:8px;padding:6px 8px;border:1px solid #999;min-height:40px}
+    @media print{body{padding:15mm;width:100%}@page{size:A4 portrait;margin:0}}
+  </style></head><body>
+  <h1>지 출 결 의 서</h1>
+  <div class="header">
+    <div class="meta">
+      <div>기안자: <strong>${esc(e.drafter||'')}</strong></div>
+      <div>작성일: <strong>${fmtDate(e.createdAt)}</strong></div>
+    </div>
+    <table class="sign-table">
+      <tr>
+        <td class="label">담당</td>
+        <td class="label">팀장</td>
+        <td class="label">부장</td>
+        <td class="label">대표</td>
+      </tr>
+      <tr>
+        <td style="height:52px"></td>
+        <td style="height:52px"></td>
+        <td style="height:52px"></td>
+        <td style="height:52px"></td>
+      </tr>
+    </table>
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:13%">계정과목</th>
+      <th style="width:22%">적요</th>
+      <th style="width:13%">금액</th>
+      <th style="width:12%">은행명</th>
+      <th style="width:22%">계좌번호</th>
+      <th style="width:18%">예금주</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td colspan="2" style="text-align:center;font-weight:700">합 계</td>
+        <td style="text-align:right;font-weight:700">${Number(e.total||0).toLocaleString()}원</td>
+        <td colspan="3"></td>
+      </tr>
+    </tfoot>
+  </table>
+  ${e.memo?`<div class="memo">※ 메모: ${esc(e.memo)}</div>`:''}
   <script>window.onload=()=>{window.print();}<\/script></body></html>`);
   w.document.close();
 }
@@ -3579,26 +3672,77 @@ function printRefund(){
     note:div.querySelector('.ref-note')?.value||'',
   }));
   const total=items.reduce((s,i)=>s+i.amount,0);
-  const w=window.open('','_blank','width=900,height=600');
-  const rows=items.map(i=>`<tr>
-    <td>${esc(i.item)}</td><td>${esc(i.name)}</td><td>${esc(i.idNo)}</td>
-    <td>${esc(i.bank)}</td><td>${esc(i.accountNo)}</td><td>${esc(i.holder)}</td>
-    <td style="text-align:right">${i.amount.toLocaleString()}원</td><td>${esc(i.note)}</td>
+  const MIN_ROWS=7;
+  const allItems=[...items];
+  while(allItems.length<MIN_ROWS) allItems.push({item:'',name:'',idNo:'',bank:'',accountNo:'',holder:'',amount:'',note:''});
+  const rows=allItems.map(i=>`<tr>
+    <td>${esc(i.item||'')}</td>
+    <td>${esc(i.name||'')}</td>
+    <td>${esc(i.idNo||'')}</td>
+    <td>${esc(i.bank||'')}</td>
+    <td>${esc(i.accountNo||'')}</td>
+    <td>${esc(i.holder||'')}</td>
+    <td style="text-align:right">${i.amount?Number(i.amount).toLocaleString()+'원':''}</td>
+    <td>${esc(i.note||'')}</td>
   </tr>`).join('');
+  const w=window.open('','_blank','width=794,height=1123');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>반환금처리대장</title>
-  <style>body{font-family:'Noto Sans KR',sans-serif;padding:30px;color:#000;font-size:12px}
-  h2{text-align:center;margin-bottom:20px;font-size:18px}
-  .meta{display:flex;gap:30px;margin-bottom:16px}
-  table{width:100%;border-collapse:collapse;margin-bottom:12px}
-  th,td{border:1px solid #333;padding:6px 8px;font-size:11px}
-  th{background:#f5f5f5;font-weight:700}
-  .total{text-align:right;font-size:14px;font-weight:700}
-  @media print{body{padding:15px}}</style></head><body>
-  <h2>반 환 금 처 리 대 장</h2>
-  <div class="meta"><span>기안자: <strong>${esc(_user.name)}</strong></span><span>작성일: <strong>${fmtDate(todayStr())}</strong></span></div>
-  <table><thead><tr><th>품목</th><th>성함</th><th>주민번호</th><th>은행명</th><th>계좌번호</th><th>예금주</th><th>금액</th><th>비고</th></tr></thead>
-  <tbody>${rows}</tbody></table>
-  <div class="total">반환금 합계: ${total.toLocaleString()}원</div>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:20mm 15mm;color:#000;font-size:11px;width:210mm;min-height:297mm}
+    h1{font-size:20px;font-weight:900;letter-spacing:4px;text-align:center;margin-bottom:20px}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+    .meta{font-size:12px;line-height:2}
+    .sign-table{border-collapse:collapse;font-size:11px}
+    .sign-table td{border:1px solid #000;padding:4px 8px;text-align:center;min-width:52px;height:44px;vertical-align:top}
+    .sign-table .label{background:#f5f5f5;font-weight:700;height:22px;padding:2px 8px}
+    table{width:100%;border-collapse:collapse;margin-bottom:14px}
+    th,td{border:1px solid #666;padding:5px 6px;font-size:10px}
+    th{background:#f0f0f0;font-weight:700;text-align:center}
+    .total-row td{font-weight:700;background:#f9f9f9}
+    @media print{body{padding:10mm;width:100%}@page{size:A4 portrait;margin:0}}
+  </style></head><body>
+  <h1>반 환 금 처 리 대 장</h1>
+  <div class="header">
+    <div class="meta">
+      <div>기안자: <strong>${esc(_user.name)}</strong></div>
+      <div>작성일: <strong>${fmtDate(todayStr())}</strong></div>
+    </div>
+    <table class="sign-table">
+      <tr>
+        <td class="label">담당</td>
+        <td class="label">팀장</td>
+        <td class="label">부장</td>
+        <td class="label">대표</td>
+      </tr>
+      <tr>
+        <td style="height:52px"></td>
+        <td style="height:52px"></td>
+        <td style="height:52px"></td>
+        <td style="height:52px"></td>
+      </tr>
+    </table>
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:10%">품목</th>
+      <th style="width:9%">성함</th>
+      <th style="width:14%">주민번호</th>
+      <th style="width:10%">은행명</th>
+      <th style="width:18%">계좌번호</th>
+      <th style="width:10%">예금주</th>
+      <th style="width:12%">금액</th>
+      <th style="width:17%">비고</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td colspan="6" style="text-align:center;font-weight:700">합 계</td>
+        <td style="text-align:right;font-weight:700">${total.toLocaleString()}원</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
   <script>window.onload=()=>{window.print();}<\/script></body></html>`);
   w.document.close();
 }
