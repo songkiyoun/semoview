@@ -1075,16 +1075,14 @@ async function apiPostVerified(gas, body){
 function decodeToken(token){
   if(!token) return null;
   try{
-    // URL-safe Base64 → 표준 Base64 복원
     const std = token.replace(/-/g, '+').replace(/_/g, '/');
     const padded = std + '='.repeat((4 - std.length % 4) % 4);
-    // UTF-8 바이트 배열로 디코딩 (한국어 지원)
     const binary = atob(padded);
     const bytes = new Uint8Array(binary.length);
     for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
     const decoded = JSON.parse(new TextDecoder('utf-8').decode(bytes));
     if(decoded.secret !== TOKEN_SECRET) return null;
-    return {code:decoded.code, name:decoded.name, grade:decoded.grade};
+    return {code:decoded.code, name:decoded.name, grade:decoded.grade, position:decoded.position||''};
   }catch(_){return null;}
 }
 
@@ -1103,7 +1101,9 @@ async function doLogin(){
     if(!user){errEl.textContent='토큰 오류. 다시 시도해주세요.';btn.disabled=false;btn.textContent='로그인';return;}
     _user = {...user, token:res.token};
     localStorage.setItem('sv4-token', res.token);
-    localStorage.setItem('sv4-user', JSON.stringify({code:user.code,name:user.name,grade:user.grade}));
+    localStorage.setItem('sv4-user', JSON.stringify({
+      code:user.code, name:user.name, grade:user.grade, position:user.position||''
+    }));
     enterApp();
   } else {
     errEl.textContent = res?.error || '로그인 실패. 코드명과 패스워드를 확인해주세요.';
@@ -1132,7 +1132,7 @@ function enterApp(){
   document.getElementById('topbar').style.display='flex';
   document.getElementById('app-body').style.display='flex';
   document.getElementById('tb-name').textContent = _user.name;
-  document.getElementById('tb-grade').textContent = _user.grade;
+  document.getElementById('tb-grade').textContent = _user.position || _user.grade;
   buildSidebar(_user.grade);
   loadInitialData();
   // 리로드 후 탭 복귀
@@ -1259,13 +1259,15 @@ async function loadInitialData(){
 }
 
 function populateMemberSelects(){
-  // 달력 뷰어 (관리자용) - 전체 + 개인별
+  // 달력 뷰어 (관리자용)
   const calSel = document.getElementById('cal-viewer-sel');
   if(calSel && _user?.grade?.toLowerCase()==='admin'){
     calSel.innerHTML='<option value="">전체 팀 달력</option>';
     _members.forEach(m=>{
       const opt=document.createElement('option');
-      opt.value=m.code; opt.textContent=m.name; calSel.appendChild(opt);
+      opt.value=m.code;
+      opt.textContent=`${m.name}${m.position?' ('+m.position+')':''}`;
+      calSel.appendChild(opt);
     });
     document.getElementById('cal-viewer-wrap').style.display='block';
   }
@@ -1279,7 +1281,9 @@ function populateMemberSelects(){
     _members.forEach(m=>{
       if(m.code===_user.code) return;
       const opt=document.createElement('option');
-      opt.value=m.code; opt.textContent=m.name; sel.appendChild(opt);
+      opt.value=m.code;
+      opt.textContent=`${m.name}${m.position?' ('+m.position+')':''}`;
+      sel.appendChild(opt);
     });
   });
 }
@@ -2809,7 +2813,11 @@ async function loadProfile(){
   body.innerHTML=`
     <div class="card" style="margin-bottom:12px">
       <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:4px">${esc(_user.name)}</div>
-      <div style="font-size:12px;color:var(--dim)">${esc(_user.grade)} · ${esc(_user.code)}</div>
+      <div style="font-size:12px;color:var(--dim)">
+        ${_user.position?`<span style="margin-right:8px">${esc(_user.position)}</span>`:''}
+        <span style="color:var(--gold)">${esc(_user.grade)}</span>
+        <span style="margin-left:8px;color:rgba(255,255,255,.2)">${esc(_user.code)}</span>
+      </div>
     </div>
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">📊 나의 활동 기록</div>
