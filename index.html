@@ -1002,11 +1002,59 @@ let _editId = null; // 현재 편집 중인 문서 ID
 let _calYear, _calMonth, _calSelected;
 
 // MB 등급별 확률 테이블
-const MB_GRADES=[
-  {grade:'SSS',pct:0.5},{grade:'SS',pct:1.5},{grade:'S',pct:4},
-  {grade:'A',pct:10},{grade:'B',pct:20},{grade:'C',pct:25},
-  {grade:'D',pct:20},{grade:'E',pct:10},{grade:'F',pct:9}
-];
+// SSS/SS/S는 절대 고정 확률
+const MB_FIXED = {SSS:0.001, SS:0.010, S:0.100}; // 합계 0.111%
+// A~F 기준 확률 슬롯 (나쁜 등급부터 순서대로)
+const MB_LOWER_PROBS = [40, 30, 20, 5.889, 3, 1]; // F,E,D,C,B,A 순
+const MB_LOWER_ORDER = ['F','E','D','C','B','A'];  // 나쁜→좋은
+
+function mbCalcPool(bItems, allowBlank){
+  // 박스에 있는 등급 수집
+  const hasGrade={};
+  bItems.forEach(g=>{ if(g.items?.length) hasGrade[g.grade]=g.items; });
+  if(allowBlank && !hasGrade['F']) hasGrade['F']=['꽝'];
+
+  const pool=[];
+  let used=0;
+
+  // SSS/SS/S 고정 먼저
+  ['SSS','SS','S'].forEach(g=>{
+    if(hasGrade[g]){
+      pool.push({grade:g, pct:MB_FIXED[g], list:hasGrade[g]});
+      used+=MB_FIXED[g];
+    }
+  });
+
+  // A~F 중 박스에 있는 등급만 추림 (나쁜 순서 유지)
+  const presentLower = MB_LOWER_ORDER.filter(g=>hasGrade[g]);
+  if(!presentLower.length) return pool;
+
+  // 나쁜 등급부터 확률 슬롯 배정
+  // presentLower[0]=가장 나쁜 등급 → MB_LOWER_PROBS[0](=40%) 배정
+  // presentLower[1] → MB_LOWER_PROBS[1](=30%) 배정
+  // ... 마지막(가장 좋은) 등급은 나머지 전부 흡수
+  let remain = 100 - used; // ≈99.889
+
+  presentLower.forEach((g, idx)=>{
+    // 슬롯 확률 배정 (나쁜→좋은 순서, 슬롯 초과 방지)
+    let pct = Math.min(MB_LOWER_PROBS[idx]||0, remain);
+    pct = parseFloat(pct.toFixed(4));
+    if(pct > 0){
+      pool.push({grade:g, pct, list:hasGrade[g]});
+      remain = parseFloat((remain - pct).toFixed(4));
+    }
+  });
+
+  // 남은 확률은 가장 나쁜 등급(첫번째)에 추가
+  if(remain > 0){
+    const worst = pool.find(p => p.grade === presentLower[0]);
+    if(worst) worst.pct = parseFloat((worst.pct + remain).toFixed(4));
+  }
+
+  return pool;
+}
+
+const MB_GRADES=MB_LOWER_ORDER.map((g,i)=>({grade:g,pct:MB_LOWER_PROBS[i]||0})); // 레거시 호환
 
 // MB 전역 변수 (선언 위치 중요 — 함수 정의 전 최상단)
 let mbCurrentBox = null;
@@ -2798,24 +2846,19 @@ async function mbDoOpen(){
   // 추첨
   let prize;
   try{
-    if(!bItems.length){prize={grade:'F',item:'꽝'};}
+    const pool = mbCalcPool(bItems, !!box.allowBlank);
+    if(!pool.length){ prize={grade:'F',item:'꽝'}; }
     else{
-      const pool=[];
-      bItems.forEach(g=>{
-        const gr=MB_GRADES.find(x=>x.grade===g.grade);
-        if(gr){const list=g.items||g.names||[];if(list.length)pool.push({grade:g.grade,pct:gr.pct,list});}
-      });
-      if(!box.allowBlank===false||bItems.some(g=>g.grade==='F')){/* keep as is */}
-      if(box.allowBlank&&!pool.some(g=>g.grade==='F')){
-        const fG=MB_GRADES.find(x=>x.grade==='F');
-        if(fG)pool.push({grade:'F',pct:fG.pct,list:['꽝']});
-      }
-      if(!pool.length){prize={grade:'F',item:'꽝'};}
-      else{
-        const total=pool.reduce((s,g)=>s+g.pct,0);
-        let r=Math.random()*total;
-        prize={grade:'F',item:'꽝'};
-        for(const g of pool){r-=g.pct;if(r<=0){prize={grade:g.grade,item:g.list[Math.floor(Math.random()*g.list.length)]||'꽝'};if(prize.item==='꽝')prize.grade='F';break;}}
+      const total=pool.reduce((s,g)=>s+g.pct,0);
+      let r=Math.random()*total;
+      prize={grade:'F',item:'꽝'};
+      for(const g of pool){
+        r-=g.pct;
+        if(r<=0){
+          const item=g.list[Math.floor(Math.random()*g.list.length)]||'꽝';
+          prize={grade:g.grade, item};
+          break;
+        }
       }
     }
   }catch(e){
@@ -4109,9 +4152,9 @@ function printOrderData(o){
     body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:20mm 15mm;color:#000;font-size:11px;width:210mm;height:297mm;overflow:hidden}
     .header-table{width:100%;border-collapse:collapse;margin-bottom:8px}
     .header-table td{border:1px solid #000;vertical-align:middle}
-    .title-cell{font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;padding:8px 12px}
-    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0;width:44px}
-    .sign-body{height:40px;width:44px;text-align:center}
+    .title-cell{font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;padding:8px 12px;width:50%}
+    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0}
+    .sign-body{height:40px;text-align:center}
     .meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:11px}
     .meta-item{padding:5px 8px;border:1px solid #ddd;background:#f9f9f9}
     .meta-label{font-size:10px;color:#666;margin-bottom:2px}
@@ -4170,9 +4213,9 @@ async function printRefundById(id){
     body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:15mm 12mm;color:#000;font-size:10px;width:210mm;height:297mm;overflow:hidden}
     .header-table{width:100%;border-collapse:collapse;margin-bottom:7px}
     .header-table td{border:1px solid #000;vertical-align:middle}
-    .title-cell{font-size:19px;font-weight:900;letter-spacing:4px;text-align:center;padding:7px 10px}
-    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0;width:36px}
-    .sign-body{height:38px;width:36px;text-align:center}
+    .title-cell{font-size:19px;font-weight:900;letter-spacing:4px;text-align:center;padding:7px 10px;width:50%}
+    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0}
+    .sign-body{height:38px;text-align:center}
     .meta-row{display:flex;gap:20px;font-size:11px;margin-bottom:7px;padding:4px 8px;background:#f9f9f9;border:1px solid #ddd}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #888;padding:2px 4px;font-size:9.5px;overflow:hidden}
@@ -4246,9 +4289,9 @@ function printExpenseData(e){
     body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:20mm 15mm;color:#000;font-size:11px;width:210mm;height:297mm;overflow:hidden}
     .header-table{width:100%;border-collapse:collapse;margin-bottom:8px}
     .header-table td{border:1px solid #000;vertical-align:middle}
-    .title-cell{font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;padding:8px 12px}
-    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0;width:36px}
-    .sign-body{height:40px;width:36px;text-align:center}
+    .title-cell{font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;padding:8px 12px;width:50%}
+    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0}
+    .sign-body{height:40px;text-align:center}
     .meta-row{display:flex;gap:20px;font-size:11px;margin-bottom:8px;padding:5px 8px;background:#f9f9f9;border:1px solid #ddd}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #888;padding:3px 5px;font-size:10px;overflow:hidden}
@@ -4332,9 +4375,9 @@ function printRefund(){
     body{font-family:'Noto Sans KR','맑은 고딕',sans-serif;padding:15mm 12mm;color:#000;font-size:10px;width:210mm;height:297mm;overflow:hidden}
     .header-table{width:100%;border-collapse:collapse;margin-bottom:7px}
     .header-table td{border:1px solid #000;vertical-align:middle}
-    .title-cell{font-size:19px;font-weight:900;letter-spacing:4px;text-align:center;padding:7px 10px}
-    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0;width:36px}
-    .sign-body{height:38px;width:36px;text-align:center}
+    .title-cell{font-size:19px;font-weight:900;letter-spacing:4px;text-align:center;padding:7px 10px;width:50%}
+    .sign-label{font-size:9px;font-weight:700;text-align:center;background:#f5f5f5;padding:3px 0}
+    .sign-body{height:38px;text-align:center}
     .meta-row{display:flex;gap:20px;font-size:11px;margin-bottom:7px;padding:4px 8px;background:#f9f9f9;border:1px solid #ddd}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #888;padding:2px 4px;font-size:9.5px;overflow:hidden}
