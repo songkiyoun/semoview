@@ -405,104 +405,9 @@ a{color:inherit;text-decoration:none}
 
 <div class="app-body" id="app-body" style="display:none">
 
-<!-- ── 사이드바 ── -->
+<!-- ── 사이드바 (JS에서 동적 생성) ── -->
 <nav id="sidebar">
-  <!-- 홈 -->
-  <div class="sb-section">
-    <button class="sb-item on" id="sb-home" onclick="nav('home',this)">
-      <span class="si">🏠</span><span class="sl">홈·브리핑</span>
-    </button>
-  </div>
-
-  <div class="sb-divider"></div>
-
-  <!-- 데일리 -->
-  <div class="sb-section">
-    <div class="sb-section-label">데일리</div>
-    <button class="sb-item" id="sb-calendar" onclick="nav('calendar',this)">
-      <span class="si">📅</span><span class="sl">달력</span>
-    </button>
-    <button class="sb-item" id="sb-schedule" onclick="nav('schedule',this)">
-      <span class="si">📆</span><span class="sl">일정</span>
-    </button>
-    <button class="sb-item" id="sb-todo" onclick="nav('todo',this)">
-      <span class="si">✅</span><span class="sl">할 일</span>
-    </button>
-  </div>
-
-  <div class="sb-divider"></div>
-
-  <!-- 회사업무 -->
-  <div class="sb-section">
-    <div class="sb-section-label">회사업무</div>
-    <button class="sb-item" id="sb-jolgimun" onclick="nav('jolgimun',this)">
-      <span class="si">📩</span><span class="sl">절기문자</span>
-    </button>
-    <button class="sb-item sb-admin-only" id="sb-blog" onclick="nav('blog',this)" style="display:none">
-      <span class="si">📝</span><span class="sl">블로그 관리대행</span>
-    </button>
-    <button class="sb-item sb-admin-only" id="sb-sponsor" onclick="nav('sponsor',this)" style="display:none">
-      <span class="si">🤝</span><span class="sl">협찬 포스팅</span>
-    </button>
-    <button class="sb-item sb-admin-manager" id="sb-daigeo" onclick="nav('daigeo',this)" style="display:none">
-      <span class="si">📊</span><span class="sl">다이겨 매출현황</span>
-    </button>
-  </div>
-
-  <div class="sb-divider"></div>
-
-  <!-- 회사문서 -->
-  <div class="sb-section">
-    <div class="sb-section-label">회사문서</div>
-    <button class="sb-item" id="sb-order" onclick="nav('order',this)">
-      <span class="si">📋</span><span class="sl">발주서</span>
-    </button>
-    <button class="sb-item" id="sb-expense" onclick="nav('expense',this)">
-      <span class="si">💰</span><span class="sl">지출결의서</span>
-    </button>
-    <button class="sb-item" id="sb-refund" onclick="nav('refund',this)">
-      <span class="si">💸</span><span class="sl">반환금처리대장</span>
-    </button>
-    <button class="sb-item" id="sb-contact" onclick="nav('contact',this)">
-      <span class="si">🏢</span><span class="sl">거래처 주소록</span>
-    </button>
-  </div>
-
-  <div class="sb-divider"></div>
-
-  <!-- 미스테리박스 -->
-  <div class="sb-section">
-    <div class="sb-section-label">미스테리박스</div>
-    <button class="sb-item sb-admin-only" id="sb-mb-admin" onclick="nav('mb-admin',this)" style="display:none">
-      <span class="si">⚙</span><span class="sl">관리자</span>
-    </button>
-    <button class="sb-item" id="sb-mb-user" onclick="nav('mb-user',this)">
-      <span class="si">🎁</span><span class="sl">수령</span>
-    </button>
-    <button class="sb-item sb-admin-only" id="sb-mb-stats" onclick="nav('mb-stats',this)" style="display:none">
-      <span class="si">📊</span><span class="sl">통계</span>
-    </button>
-  </div>
-
-  <div class="sb-divider"></div>
-
-  <!-- 기타 -->
-  <div class="sb-section">
-    <button class="sb-item" id="sb-profile" onclick="nav('profile',this)">
-      <span class="si">👤</span><span class="sl">내 프로필</span>
-    </button>
-    <button class="sb-item sb-admin-only" id="sb-mapeon-inbox" onclick="openMapeonInbox()">
-      <span class="si">💬</span><span class="sl">마음의소리 수신함</span>
-      <span class="sb-badge" id="sb-mapeon-badge" style="display:none">0</span>
-    </button>
-    <button class="sb-item" onclick="openMapeonModal()">
-      <span class="si">💬</span><span class="sl">마음의소리</span>
-    </button>
-    <button class="sb-item sb-admin-only" id="sb-notice-admin" onclick="nav('notice-admin',this)">
-      <span class="si">📢</span><span class="sl">공지 작성</span>
-    </button>
-  </div>
-
+  <div id="sb-content"></div>
   <div class="sb-bottom"></div>
 </nav>
 
@@ -1227,48 +1132,95 @@ function enterApp(){
   document.getElementById('app-body').style.display='flex';
   document.getElementById('tb-name').textContent = _user.name;
   document.getElementById('tb-grade').textContent = _user.grade;
-  applyRoleUI(_user.grade);
+  buildSidebar(_user.grade);
   loadInitialData();
-  nav('home');
+  // 리로드 후 탭 복귀
+  const lastTab = localStorage.getItem('sv4-last-tab');
+  if(lastTab){ localStorage.removeItem('sv4-last-tab'); nav(lastTab); }
+  else nav('home');
   document.getElementById('lc-code').value='';
   document.getElementById('lc-pw').value='';
+}
+
+// ── 리로드 유틸: 현재 탭 저장 후 전체 리로드
+function reloadTo(tab){
+  localStorage.setItem('sv4-last-tab', tab);
+  location.reload();
+}
+
+// ── 사이드바 동적 생성 (grade 기반 확실한 분기)
+function buildSidebar(grade){
+  const g = (grade||'').toLowerCase().trim();
+  const isAdmin = g === 'admin';
+  const isMgr   = g === 'admin' || g === 'manager';
+
+  const item = (id, icon, label, action, extra='') =>
+    `<button class="sb-item" id="sb-${id}" onclick="${action}">${extra}<span class="si">${icon}</span><span class="sl">${label}</span></button>`;
+
+  let html = `
+  <div class="sb-section">
+    ${item('home','🏠','홈·브리핑',"nav('home',this)")}
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-section">
+    <div class="sb-section-label">데일리</div>
+    ${item('calendar','📅','달력',"nav('calendar',this)")}
+    ${item('schedule','📆','일정',"nav('schedule',this)")}
+    ${item('todo','✅','할 일',"nav('todo',this)")}
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-section">
+    <div class="sb-section-label">회사업무</div>
+    ${item('jolgimun','📩','절기문자',"nav('jolgimun',this)")}
+    ${isAdmin ? item('blog','📝','블로그 관리대행',"nav('blog',this)") : ''}
+    ${isAdmin ? item('sponsor','🤝','협찬 포스팅',"nav('sponsor',this)") : ''}
+    ${isMgr   ? item('daigeo','📊','다이겨 매출현황',"nav('daigeo',this)") : ''}
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-section">
+    <div class="sb-section-label">회사문서</div>
+    ${item('order','📋','발주서',"nav('order',this)")}
+    ${item('expense','💰','지출결의서',"nav('expense',this)")}
+    ${item('refund','💸','반환금처리대장',"nav('refund',this)")}
+    ${item('contact','🏢','거래처 주소록',"nav('contact',this)")}
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-section">
+    <div class="sb-section-label">미스테리박스</div>
+    ${isAdmin ? item('mb-admin','⚙','관리자',"nav('mb-admin',this)") : ''}
+    ${item('mb-user','🎁','수령',"nav('mb-user',this)")}
+    ${isAdmin ? item('mb-stats','📊','통계',"nav('mb-stats',this)") : ''}
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-section">
+    ${item('profile','👤','내 프로필',"nav('profile',this)")}
+    ${isAdmin ? `<button class="sb-item" id="sb-mapeon-inbox" onclick="openMapeonInbox()"><span class="si">💬</span><span class="sl">마음의소리 수신함</span><span class="sb-badge" id="sb-mapeon-badge" style="display:none">0</span></button>` : ''}
+    <button class="sb-item" onclick="openMapeonModal()"><span class="si">💬</span><span class="sl">마음의소리</span></button>
+    ${isAdmin ? item('notice-admin','📢','공지 작성',"nav('notice-admin',this)") : ''}
+  </div>`;
+
+  document.getElementById('sb-content').innerHTML = html;
+}
+
+// ── 역할별 UI (할일 담당자 등 사이드바 외 요소)
+function applyRoleUI(grade){
+  const g = (grade||'').toLowerCase().trim();
+  const isAdmin = g === 'admin';
+  const tdWrap = document.getElementById('td-assignee-wrap');
+  if(tdWrap) tdWrap.style.display = isAdmin ? 'block' : 'none';
 }
 
 function doLogout(){
   if(!confirm('로그아웃 하시겠습니까?')) return;
   localStorage.removeItem('sv4-token');
   localStorage.removeItem('sv4-user');
+  localStorage.removeItem('sv4-last-tab');
   _user=null; _members=[]; _events=[]; _todos=[]; _notices=[];
   _contacts=[]; _orders=[]; _expenses=[]; _refunds=[];
   document.getElementById('topbar').style.display='none';
   document.getElementById('app-body').style.display='none';
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('lc-err').textContent='';
-}
-
-// ════════════════════════════════
-//  역할별 UI
-// ════════════════════════════════
-function applyRoleUI(grade){
-  // grade 정규화 (대소문자·공백 무관)
-  const g = (grade||'').toLowerCase().trim();
-  const isAdmin   = g === 'admin';
-  const isMgrPlus = g === 'admin' || g === 'manager';
-
-  // admin 전용 요소 (sb-admin-only 클래스)
-  document.querySelectorAll('.sb-admin-only').forEach(el=>{
-    el.style.setProperty('display', isAdmin ? 'flex' : 'none', 'important');
-  });
-  // admin+manager 요소
-  document.querySelectorAll('.sb-admin-manager').forEach(el=>{
-    el.style.setProperty('display', isMgrPlus ? 'flex' : 'none', 'important');
-  });
-  // 할일 담당자 지정
-  const tdWrap = document.getElementById('td-assignee-wrap');
-  if(tdWrap) tdWrap.style.setProperty('display', isAdmin ? 'block' : 'none', 'important');
-  // 공지 작성 버튼 (명시적)
-  const noticeBtn = document.getElementById('sb-notice-admin');
-  if(noticeBtn) noticeBtn.style.setProperty('display', isAdmin ? 'flex' : 'none', 'important');
 }
 
 // ════════════════════════════════
@@ -1695,24 +1647,17 @@ async function saveEvent(){
   const isHol = type!=='일정';
   const startAt = isHol ? document.getElementById('ev-date').value+'T00:00' : document.getElementById('ev-start').value;
   const endAt   = isHol ? '' : document.getElementById('ev-end').value;
-  const place   = document.getElementById('ev-place').value;
-  const memo    = document.getElementById('ev-memo').value;
-  const id      = _editId || ('EV-'+Date.now());
-
-  // Optimistic update
-  const updated={code:_user.code,id,type,title,startAt,endAt,place,memo,color:'',createdAt:new Date().toISOString().slice(0,10)};
-  if(_editId){const idx=_events.findIndex(e=>e.id===_editId);if(idx>=0)_events[idx]={..._events[idx],...updated};else _events.unshift(updated);}
-  else _events.unshift(updated);
   closeModal('event-modal');
-  renderSchedule(); renderCalendar();
-
-  apiPost(GAS_A,{action:'save_event',id:_editId||'',type,title,startAt,endAt,place,memo});
+  apiPost(GAS_A,{action:'save_event',id:_editId||'',type,title,startAt,endAt,
+    place:document.getElementById('ev-place').value,
+    memo:document.getElementById('ev-memo').value});
+  reloadTo('schedule');
 }
 
 async function deleteEvent(id){
   if(!confirm('이 일정을 삭제하시겠습니까?')) return;
-  await apiPost(GAS_A,{action:'delete_event',id});
-  await loadEvents();
+  apiPost(GAS_A,{action:'delete_event',id});
+  reloadTo('schedule');
 }
 
 // ════════════════════════════════
@@ -1878,36 +1823,24 @@ function openTodoModal(id=null){
 async function saveTodo(){
   const content=document.getElementById('td-content').value.trim();
   if(!content){alert('내용을 입력해주세요.');return;}
-  const priority=document.getElementById('td-priority').value;
-  const dueDate=document.getElementById('td-due').value;
-  const assignee=document.getElementById('td-assignee')?.value||'';
-  const id=_editId||('TD-'+Date.now());
-
-  // Optimistic update
-  const updated={code:_user.code,id,content,priority,dueDate,assignee,sender:assignee?_user.code:'',done:false,doneAt:'',createdAt:new Date().toISOString().slice(0,10)};
-  if(_editId){const idx=_todos.findIndex(t=>t.id===_editId);if(idx>=0)_todos[idx]={..._todos[idx],...updated};else _todos.unshift(updated);}
-  else _todos.unshift(updated);
   closeModal('todo-modal');
-  renderTodos();
-
-  apiPost(GAS_A,{action:'save_todo',id:_editId||'',content,priority,dueDate,assignee});
+  apiPost(GAS_A,{action:'save_todo',id:_editId||'',
+    content,
+    priority:document.getElementById('td-priority').value,
+    dueDate:document.getElementById('td-due').value,
+    assignee:document.getElementById('td-assignee')?.value||''});
+  reloadTo('todo');
 }
 
 async function toggleTodo(id,done){
-  // Optimistic update
-  const t=_todos.find(x=>x.id===id);
-  if(t){t.done=done;t.doneAt=done?todayStr():'';}
-  renderTodos();
-  // 서버 저장
   apiPost(GAS_A,{action:'complete_todo',id,done});
-  // 3초 후 서버 재조회 (캐시 무력화)
-  setTimeout(()=>loadTodos(), 3000);
+  reloadTo('todo');
 }
 
 async function deleteTodo(id){
   if(!confirm('이 할일을 삭제하시겠습니까?')) return;
-  await apiPost(GAS_A,{action:'delete_todo',id});
-  await loadTodos();
+  apiPost(GAS_A,{action:'delete_todo',id});
+  reloadTo('todo');
 }
 
 // ════════════════════════════════
@@ -1987,28 +1920,15 @@ async function saveOrder(){
   if(!client){alert('거래처명을 입력해주세요.');return;}
   const items=[...document.querySelectorAll('.ord-item')].map(i=>({item:i.value.trim()})).filter(i=>i.item);
   if(!items.length){alert('품목을 1개 이상 입력해주세요.');return;}
-  const receiver=document.getElementById('ord-receiver').value;
-  const startDate=document.getElementById('ord-start').value;
-  const dueDate=document.getElementById('ord-due').value;
-  const detail=document.getElementById('ord-detail').value;
-
-  // Optimistic update: 즉시 로컬 반영
-  const id = _editId || ('ORD-' + Date.now());
-  const updated = {code:_user.code, id, client, items, startDate, dueDate, detail, status:'완료', receiver, confirmed:false, confirmedAt:''};
-  if(_editId){
-    const idx=_orders.findIndex(o=>o.id===_editId);
-    if(idx>=0) _orders[idx]={..._orders[idx],...updated};
-    else _orders.unshift(updated);
-  } else {
-    _orders.unshift(updated);
-  }
   closeModal('order-modal');
-  renderOrders();
-
-  // 백그라운드 서버 저장
-  apiPost(GAS_B,{action:'save_order',id:_editId||'',client,items,startDate,dueDate,detail,receiver,status:'완료'});
-  // 서버 ID로 교체 (백그라운드)
-  if(!_editId) setTimeout(()=>loadOrders(), 3000);
+  apiPost(GAS_B,{action:'save_order',id:_editId||'',
+    client,items,
+    startDate:document.getElementById('ord-start').value,
+    dueDate:document.getElementById('ord-due').value,
+    detail:document.getElementById('ord-detail').value,
+    receiver:document.getElementById('ord-receiver').value,
+    status:'완료'});
+  reloadTo('order');
 }
 
 async function viewOrder(id){
@@ -2046,20 +1966,15 @@ async function viewOrder(id){
 }
 
 async function confirmOrder(id){
-  // Optimistic update: 즉시 로컬 반영
-  const o=_orders.find(x=>x.id===id);
-  if(o){ o.confirmed=true; o.confirmedAt=new Date().toLocaleString('ko-KR'); }
   closeModal('doc-view-modal');
-  renderOrders();
-  // 서버 저장 후 3초 뒤 서버에서 재조회 (캐시 무력화 타임스탬프 포함)
   apiPost(GAS_B,{action:'confirm_order',id});
-  setTimeout(()=>loadOrders(), 3000);
+  reloadTo('order');
 }
 
 async function deleteOrder(id){
   if(!confirm('이 발주서를 삭제하시겠습니까?')) return;
-  await apiPost(GAS_B,{action:'delete_order',id});
-  await loadOrders();
+  apiPost(GAS_B,{action:'delete_order',id});
+  reloadTo('order');
 }
 
 // ════════════════════════════════
@@ -2147,18 +2062,10 @@ async function saveExpense(){
     holder:div.querySelector('.exp-holder')?.value||'',
   }));
   if(!items.length){alert('항목을 1개 이상 추가해주세요.');return;}
-  const memo=document.getElementById('exp-memo').value;
-  const id=_editId||('EXP-'+Date.now());
-
-  // Optimistic update
-  const updated={code:_user.code,id,createdAt:new Date().toISOString().slice(0,10),drafter:_user.name,status:'완료'};
-  if(_editId){const idx=_expenses.findIndex(e=>e.id===_editId);if(idx>=0)_expenses[idx]={..._expenses[idx],...updated};else _expenses.unshift(updated);}
-  else _expenses.unshift(updated);
   closeModal('expense-modal');
-  renderExpenses();
-
-  apiPost(GAS_B,{action:'save_expense',id:_editId||'',items,memo,status:'완료'});
-  if(!_editId) setTimeout(()=>loadExpenses(),3000);
+  apiPost(GAS_B,{action:'save_expense',id:_editId||'',items,
+    memo:document.getElementById('exp-memo').value,status:'완료'});
+  reloadTo('expense');
 }
 
 async function viewExpense(id){
@@ -2199,8 +2106,8 @@ async function viewExpense(id){
 
 async function deleteExpense(id){
   if(!confirm('이 지출결의서를 삭제하시겠습니까?')) return;
-  await apiPost(GAS_B,{action:'delete_expense',id});
-  await loadExpenses();
+  apiPost(GAS_B,{action:'delete_expense',id});
+  reloadTo('expense');
 }
 
 // ════════════════════════════════
@@ -2291,17 +2198,9 @@ async function saveRefund(){
     note:div.querySelector('.ref-note')?.value||'',
   }));
   if(!items.length){alert('항목을 1개 이상 추가해주세요.');return;}
-  const id=_refundEditId||('REF-'+Date.now());
-
-  // Optimistic update
-  const updated={code:_user.code,id,createdAt:new Date().toISOString().slice(0,10),drafter:_user.name,status:'완료'};
-  if(_refundEditId){const idx=_refunds.findIndex(r=>r.id===_refundEditId);if(idx>=0)_refunds[idx]={..._refunds[idx],...updated};else _refunds.unshift(updated);}
-  else _refunds.unshift(updated);
   closeModal('refund-modal');
-  renderRefunds();
-
   apiPost(GAS_B,{action:'save_refund',id:_refundEditId||'',items,status:'완료'});
-  if(!_refundEditId) setTimeout(()=>loadRefunds(),3000);
+  reloadTo('refund');
 }
 
 async function viewRefund(id){
@@ -2342,8 +2241,8 @@ async function viewRefund(id){
 
 async function deleteRefund(id){
   if(!confirm('이 반환금처리대장을 삭제하시겠습니까?')) return;
-  await apiPost(GAS_B,{action:'delete_refund',id});
-  await loadRefunds();
+  apiPost(GAS_B,{action:'delete_refund',id});
+  reloadTo('refund');
 }
 
 // ════════════════════════════════
@@ -2394,7 +2293,8 @@ function openContactModal(id=null){
 async function saveContact(){
   const name=document.getElementById('ct-name').value.trim();
   if(!name){alert('거래처명을 입력해주세요.');return;}
-  await apiPost(GAS_B,{
+  closeModal('contact-modal');
+  apiPost(GAS_B,{
     action:'save_contact',
     id:document.getElementById('ct-id').value||'',
     name,
@@ -2404,14 +2304,13 @@ async function saveContact(){
     address:document.getElementById('ct-address').value,
     memo:document.getElementById('ct-memo').value,
   });
-  closeModal('contact-modal');
-  await loadContacts();
+  reloadTo('contact');
 }
 
 async function deleteContact(id){
   if(!confirm('이 거래처를 삭제하시겠습니까?')) return;
-  await apiPost(GAS_B,{action:'delete_contact',id});
-  await loadContacts();
+  apiPost(GAS_B,{action:'delete_contact',id});
+  reloadTo('contact');
 }
 
 // ════════════════════════════════
