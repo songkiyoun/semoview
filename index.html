@@ -1163,7 +1163,14 @@ async function apiPostVerified(gas, body){
 function decodeToken(token){
   if(!token) return null;
   try{
-    const decoded = JSON.parse(atob(token));
+    // URL-safe Base64 → 표준 Base64 복원
+    const std = token.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = std + '='.repeat((4 - std.length % 4) % 4);
+    // UTF-8 바이트 배열로 디코딩 (한국어 지원)
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+    const decoded = JSON.parse(new TextDecoder('utf-8').decode(bytes));
     if(decoded.secret !== TOKEN_SECRET) return null;
     return {code:decoded.code, name:decoded.name, grade:decoded.grade};
   }catch(_){return null;}
