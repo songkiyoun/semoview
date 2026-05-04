@@ -1173,20 +1173,21 @@ async function doLogin(){
   const code = document.getElementById('lc-code').value.trim();
   const pw   = document.getElementById('lc-pw').value.trim();
   const btn  = document.getElementById('lc-btn');
-  const err  = document.getElementById('lc-err');
-  if(!code||!pw){err.textContent='코드명과 패스워드를 입력해주세요.';return;}
-  btn.disabled=true; btn.textContent='로그인 중…'; err.textContent='';
+  const errEl= document.getElementById('lc-err');
+  if(!code||!pw){errEl.textContent='코드명과 패스워드를 입력해주세요.';return;}
+  btn.disabled=true; btn.textContent='로그인 중…'; errEl.textContent='';
 
-  const res = await apiFetch(GAS_A, null, 'POST', {action:'login', code, password:pw}, true);
+  // GET 방식으로 로그인 (프록시 호환성 확보)
+  const res = await apiGet(GAS_A, {action:'login', code, pw});
   if(res?.ok && res.token){
     const user = decodeToken(res.token) || res.user;
-    if(!user){err.textContent='토큰 오류. 다시 시도해주세요.';btn.disabled=false;btn.textContent='로그인';return;}
+    if(!user){errEl.textContent='토큰 오류. 다시 시도해주세요.';btn.disabled=false;btn.textContent='로그인';return;}
     _user = {...user, token:res.token};
     localStorage.setItem('sv4-token', res.token);
     localStorage.setItem('sv4-user', JSON.stringify({code:user.code,name:user.name,grade:user.grade}));
     enterApp();
   } else {
-    err.textContent = res?.error || '로그인 실패. 코드명과 패스워드를 확인해주세요.';
+    errEl.textContent = res?.error || '로그인 실패. 코드명과 패스워드를 확인해주세요.';
     btn.disabled=false; btn.textContent='로그인';
   }
 }
