@@ -3689,6 +3689,12 @@ async function loadBlog(){
     ]);
     _blogClients = parseBlogContracts(contractCsv);
     _blogLogs    = parseAllBlogLogs(logCsvs);
+    console.log('[Blog] clients:', _blogClients.length, '/ logs:', _blogLogs.length);
+    console.log('[Blog] logCsvs lengths:', logCsvs.map(c=>c?.length||'null'));
+    if(_blogLogs.length>0){
+      const sample=_blogLogs.slice(0,3);
+      sample.forEach(t=>console.log('[Blog] log sample:', t.clientName, t.date, t.status));
+    }
     _blogActiveClient = null;
     renderBlogList();
   }catch(e){
@@ -3794,7 +3800,7 @@ function renderBlogList(){
 
   sorted.forEach(c=>{
     const isActive=_blogActiveClient===c.name;
-    const cLogs=_blogLogs.filter(t=>t.clientName===c.name);
+    const cLogs=_blogLogs.filter(t=>t.clientName.replace(/\s/g,'')===c.name.replace(/\s/g,''));
     const overdueItems=cLogs.filter(t=>t.status==='발행전'&&!t.category?.includes('결제')&&daysDiff(t.date,today)<=0);
     const upcoming=cLogs.filter(t=>t.status==='발행전'&&!t.category?.includes('결제')&&daysDiff(t.date,today)>0).slice(0,5);
     const recentDone=cLogs.filter(t=>t.status==='완료'&&!t.category?.includes('결제')).sort((a,b)=>b.date-a.date).slice(0,3);
