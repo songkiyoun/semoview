@@ -250,6 +250,17 @@ a{color:inherit;text-decoration:none}
 .cal-dot-ev{background:var(--blue)}
 .cal-dot-hol{background:var(--orange)}
 .cal-dot-jolgi{background:var(--gold)}
+.cal-dot-order{background:#a78bfa}
+.cal-span-ev{height:4px;border-radius:2px;background:var(--blue);margin:2px 0}
+.cal-span-hol{height:4px;border-radius:2px;background:var(--orange);margin:2px 0}
+.cal-span-order{height:4px;border-radius:2px;background:#a78bfa;margin:2px 0}
+.cal-span-start{border-radius:3px 0 0 3px;margin-right:-2px}
+.cal-span-mid{border-radius:0;margin-left:-2px;margin-right:-2px}
+.cal-span-end{border-radius:0 3px 3px 0;margin-left:-2px}
+.cal-span-continues{position:relative}
+.cal-span-continues::after{content:'›';position:absolute;right:1px;top:50%;transform:translateY(-50%);font-size:8px;color:rgba(255,255,255,.6);line-height:1}
+.cal-span-continued::before{content:'‹';position:absolute;left:1px;top:50%;transform:translateY(-50%);font-size:8px;color:rgba(255,255,255,.6);line-height:1}
+.cal-order-badge{display:inline-block;font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.25);margin-bottom:4px}
 .cal-day.selected{background:var(--b2);border:1px solid var(--b)}
 .cal-day.is-holiday .cal-dn{color:var(--red);font-weight:700}
 .cal-day.is-sunday .cal-dn{color:rgba(224,85,85,.6)}
@@ -1246,6 +1257,7 @@ function enterApp(){
     else if(activePageId==='calendar'||activePageId==='schedule') renderCalendar(),renderSchedule();
     else if(activePageId==='todo') renderTodos();
     bgLoadJolgiDates(); // 백그라운드로 절기문자 날짜 선로드 → 달력 자동 갱신
+    bgLoadOrders();     // 백그라운드로 발주서 선로드 → 달력 자동 갱신
   });
 }
 
@@ -2059,6 +2071,16 @@ async function bgLoadJolgiDates(){
   }
 }
 
+async function bgLoadOrders(){
+  if(window._calOrders) return;
+  try{
+    const res=await apiGet(GAS_B,{action:'list_orders'});
+    window._calOrders=res?.orders||[];
+    if(_orders.length===0) _orders=window._calOrders; // 발주서 페이지에도 재활용
+    renderCalendar();
+  }catch(_){ window._calOrders=[]; }
+}
+
 function renderCalendar(){
   const now = new Date();
   if(!_calYear) _calYear=now.getFullYear();
@@ -2101,16 +2123,71 @@ function renderCalendar(){
     const jolgiInfo=jolgiMap[ds]||null;
 
     const dayEvs=getFilteredEvents().filter(ev=>(ev.startAt||'').slice(0,10)===ds);
+    // 기간 일정 바 (startAt~endAt 사이 날짜)
+    const spanEvs=getFilteredEvents().filter(ev=>{
+      const s=(ev.startAt||'').slice(0,10);
+      const e=(ev.endAt||'').slice(0,10);
+      return e&&e>s&&ds>s&&ds<=e;
+    });
+
+    const calOrders=window._calOrders||[];
+    const orderDot=calOrders.some(o=>{
+      const s=(o.createdAt||'').slice(0,10);
+      const e=(o.dueDate||'').slice(0,10);
+      return e&&ds>=s&&ds<=e;
+    });
+
     let dots=dayEvs.map(ev=>{
       const isLeave=ev.type!=='일정';
       return `<div class="cal-dot ${isLeave?'cal-dot-hol':'cal-dot-ev'}"></div>`;
     }).join('');
     if(jolgiInfo) dots+=`<div class="cal-dot cal-dot-jolgi"></div>`;
+    if(orderDot)  dots+=`<div class="cal-dot cal-dot-order"></div>`;
+
+    // 바 항목 수집 (일정 + 발주서 통합)
+    const isWeekStart=dow===0||d===1;
+    const isWeekEnd=dow===6||d===lastDate;
+
+    function makeBar(cls, startDs, endDs){
+      const isEnd=ds===endDs;
+      const isContinuesNext=isWeekEnd&&!isEnd; // 주 끝인데 아직 끝 안남 → 다음줄로 이어짐
+      const isContinuedPrev=isWeekStart&&ds!==startDs; // 주 시작인데 시작일 아님 → 이전줄에서 이어짐
+
+      let roundCls='';
+      if(isWeekStart&&isEnd)      roundCls='';
+      else if(isWeekStart)        roundCls='cal-span-start';
+      else if(isEnd||isWeekEnd)   roundCls='cal-span-end';
+      else                        roundCls='cal-span-mid';
+
+      const extraCls=[
+        isContinuesNext?'cal-span-continues':'',
+        isContinuedPrev?'cal-span-continued':''
+      ].filter(Boolean).join(' ');
+
+      return `<div class="${cls} ${roundCls} ${extraCls}" style="position:relative;opacity:.8"></div>`;
+    }
+
+    const allBars=[];
+    spanEvs.forEach(ev=>{
+      const isLeave=ev.type!=='일정';
+      allBars.push(makeBar(isLeave?'cal-span-hol':'cal-span-ev',(ev.startAt||'').slice(0,10),(ev.endAt||'').slice(0,10)));
+    });
+    calOrders.forEach(o=>{
+      const s=(o.createdAt||'').slice(0,10);
+      const e=(o.dueDate||'').slice(0,10);
+      if(!e||ds<s||ds>e) return;
+      allBars.push(makeBar('cal-span-order',s,e));
+    });
+
+    const visibleBars=allBars.slice(0,3);
+    const hiddenCount=allBars.length-visibleBars.length;
+    const spanBars=visibleBars.join('')+(hiddenCount>0?`<div style="font-size:8px;color:var(--dim);text-align:right;line-height:1.4">+${hiddenCount}</div>`:'');
 
     const classes=['cal-day',isToday?'today':'',isSel?'selected':'',isHoliday?'is-holiday':(isSunday?'is-sunday':'')].filter(Boolean).join(' ');
     html+=`<div class="${classes}" onclick="calSelectDay('${ds}')">
       <div class="cal-dn">${d}</div>
       ${solarTerm?`<div class="cal-solar-term">${solarTerm}</div>`:''}
+      ${spanBars}
       <div class="cal-dots">${dots}</div>
     </div>`;
   }
@@ -2125,6 +2202,7 @@ function renderCalendar(){
     <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--gold)"></div>절기문자</div>
     <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--green)"></div>24절기</div>
     <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--red)"></div>공휴일</div>
+    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#a78bfa"></div>발주서</div>
   </div>`;
   wrap.innerHTML=html;
   if(_calSelected) renderCalDayEvents(_calSelected);
@@ -2154,23 +2232,44 @@ function renderCalDayEvents(ds){
   const jolgiMap={};(window._jolgiDates||[]).forEach(j=>{jolgiMap[j.dateStr]=j;});
   const jolgiInfo=jolgiMap[ds]||null;
 
+  // 해당 날짜에 걸쳐있는 발주서
+  const calOrders=window._calOrders||[];
+  const dayOrders=calOrders.filter(o=>{
+    const s=(o.createdAt||'').slice(0,10);
+    const e=(o.dueDate||'').slice(0,10);
+    return e&&ds>=s&&ds<=e;
+  });
+
   let specialBadges='';
   if(holidayName) specialBadges+=`<span class="cal-holiday-badge">🎌 ${esc(holidayName)}</span> `;
   if(solarTerm)   specialBadges+=`<span class="cal-solar-badge">🌿 ${esc(solarTerm)}</span> `;
   if(jolgiInfo)   specialBadges+=`<span class="cal-jolgi-badge">📨 절기문자 — 완료 ${jolgiInfo.done} / 전체 ${jolgiInfo.total}</span>`;
+  if(dayOrders.length) specialBadges+=` <span class="cal-order-badge">📋 발주서 ${dayOrders.length}건</span>`;
 
   const dateHeader=`<div style="font-size:12px;color:var(--dim);margin-bottom:6px">${fmtDate(ds)}</div>`;
   const specialBlock=specialBadges?`<div style="margin-bottom:8px">${specialBadges}</div>`:'';
 
-  if(!evs.length){
+  // 발주서 목록 블록
+  const orderBlock=dayOrders.length?`<div style="margin-bottom:10px">`+dayOrders.map(o=>{
+    const isDue=(o.dueDate||'').slice(0,10)===ds;
+    return `<div class="list-item">
+      <div class="list-main">
+        <div class="list-title">📋 ${esc(o.client||'(거래처 없음)')}</div>
+        <div class="list-sub">작성 ${fmtDate(o.createdAt)} · 마감 ${fmtDate(o.dueDate)}</div>
+      </div>
+      ${isDue?`<span class="tag tag-r">마감일</span>`:`<span class="tag" style="background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.25)">진행중</span>`}
+    </div>`;
+  }).join('')+`</div>`:'';
+
+  if(!evs.length&&!dayOrders.length){
     el.innerHTML=dateHeader+specialBlock+(specialBadges?'':'<div class="brief-empty">일정 없음</div>');
     return;
   }
-  el.innerHTML=dateHeader+specialBlock+
+  el.innerHTML=dateHeader+specialBlock+orderBlock+
     evs.map(ev=>`<div class="list-item">
       <div class="list-main">
         <div class="list-title">${esc(ev.title)}${ev.code&&ev.code!==_user.code?` <span style="font-size:11px;color:var(--gold)">(${esc(memberMap[ev.code]||ev.code)})</span>`:''}</div>
-        <div class="list-sub">${ev.startAt?fmtDateTime(ev.startAt):''} ${ev.place?'· '+esc(ev.place):''}</div>
+        <div class="list-sub">${ev.startAt?fmtDateTime(ev.startAt):''} ${ev.place?'· '+esc(ev.place):''}${ev.endAt?' → '+fmtDateTime(ev.endAt):''}</div>
       </div>
       ${ev.code===_user.code?`<button class="btn btn-ghost btn-sm" onclick="openEventModal('${ev.id}')">수정</button>`:''}
     </div>`).join('');
