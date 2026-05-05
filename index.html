@@ -1836,8 +1836,8 @@ function renderHomeJolgi(body, existingHtml){
   } else {
     // 절기 시트 백그라운드 로드
     const urls=[
-      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=0`,
-      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv`,
+      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=0&_t=${Date.now()}`,
+      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&_t=${Date.now()}`,
     ];
     (async()=>{
       for(const u of urls){
@@ -3238,7 +3238,7 @@ async function loadAimoving(){
   const body=document.getElementById('aimoving-body');
   body.innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">불러오는 중…</div></div>';
   try{
-    const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_AIMOVING.id}/export?format=csv&gid=0`);
+    const csv=await proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_AIMOVING.id}/export?format=csv&gid=0&_t=${Date.now()}`);
     renderAimoving(csv);
   }catch(e){
     body.innerHTML='<div class="empty">에이아이무빙 시트를 불러오지 못했습니다.<br>시트 공유 설정(링크 공유 → 뷰어)을 확인해주세요.</div>';
@@ -3315,8 +3315,8 @@ async function loadJolgimun(){
   body.innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">절기문자 시트 불러오는 중…</div></div>';
   try{
     const urls=[
-      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=0`,
-      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv`,
+      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=0&_t=${Date.now()}`,
+      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&_t=${Date.now()}`,
       `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/gviz/tq?tqx=out:csv`,
     ];
     let csv=null;
@@ -3602,7 +3602,7 @@ async function loadDaigeo(){
   body.innerHTML='<div class="spin-wrap"><div class="spin"></div><div class="spin-t">매출 데이터 불러오는 중…</div></div>';
   try{
     const csvs=await Promise.all(DAIGEO_TABS.map(t=>
-      proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_DAIGEO.id}/export?format=csv&gid=${t.gid}`,15000).catch(()=>null)
+      proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_DAIGEO.id}/export?format=csv&gid=${t.gid}&_t=${Date.now()}`,15000).catch(()=>null)
     ));
     renderDaigeo(csvs);
   }catch(e){
@@ -3684,8 +3684,8 @@ async function loadBlog(){
   try{
     // 계약정보 + Log 탭들 동시 로드
     const [contractCsv, ...logCsvs] = await Promise.all([
-      proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_BLOG_NEW.contract.id}/export?format=csv&gid=${SH_BLOG_NEW.contract.gid}`),
-      ...SH_BLOG_NEW.logs.map(l=>proxyFetch(`https://docs.google.com/spreadsheets/d/${l.id}/export?format=csv&gid=${l.gid}`).catch(()=>null))
+      proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_BLOG_NEW.contract.id}/export?format=csv&gid=${SH_BLOG_NEW.contract.gid}&_t=${Date.now()}`),
+      ...SH_BLOG_NEW.logs.map(l=>proxyFetch(`https://docs.google.com/spreadsheets/d/${l.id}/export?format=csv&gid=${l.gid}&_t=${Date.now()}`).catch(()=>null))
     ]);
     _blogClients = parseBlogContracts(contractCsv);
     _blogLogs    = parseAllBlogLogs(logCsvs);
