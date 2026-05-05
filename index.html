@@ -339,6 +339,23 @@ a{color:inherit;text-decoration:none}
 
 /* ── 홈 브리핑 섹션 */
 .brief-section{margin-bottom:18px}
+/* ── 홈 카드 레이아웃 */
+.home-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px;margin-top:8px}
+.home-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.home-card{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
+.home-card:hover{border-color:rgba(255,255,255,.18)}
+.home-card-title{font-size:13px;font-weight:700;color:#fff;line-height:1.35}
+.home-card-sub{font-size:11px;color:var(--dim);line-height:1.4}
+.home-kpi-card{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:14px;text-align:center}
+.home-kpi-label{font-size:11px;color:var(--dim);margin-bottom:6px}
+.home-kpi-val{font-size:15px;font-weight:700;color:#fff}
+.home-today-scroll{display:flex;gap:8px;overflow-x:auto;padding:6px 0 8px;scrollbar-width:none}
+.home-today-scroll::-webkit-scrollbar{display:none}
+.home-today-item{flex-shrink:0;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:8px 12px;min-width:160px;max-width:240px}
+.home-today-label{font-size:12px;font-weight:700;color:#fff;margin-bottom:2px}
+.home-today-sub{font-size:11px;color:var(--dim)}
+.home-expand-btn{width:100%;margin-top:8px;font-size:12px;color:var(--dim);background:transparent;border:1px dashed var(--b);border-radius:7px;padding:6px;cursor:pointer;transition:all .15s}
+.home-expand-btn:hover{border-color:rgba(255,255,255,.2);color:#fff}
 .brief-section-title{
   font-size:10px;letter-spacing:1px;text-transform:uppercase;
   color:var(--dim);font-weight:600;margin-bottom:8px;
@@ -1600,12 +1617,21 @@ async function loadHome(){
   document.getElementById('home-date').textContent =
     today.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
 
-  const isAdmin = (_user.grade||'').toLowerCase().trim() === 'admin';
-  const memberMap={};_members.forEach(m=>memberMap[m.code]=m.name);
+  const g = (_user.grade||'').toLowerCase().trim();
+  const isAdmin   = g === 'admin';
+  const isMgr     = g === 'admin' || g === 'manager';
+  const memberMap = {};_members.forEach(m=>memberMap[m.code]=m.name);
+  const todayS    = todayStr();
+
+  // 이번주 범위 (내일 ~ 일요일)
+  const tomorrowD = new Date(today); tomorrowD.setDate(today.getDate()+1);
+  const weekEndD  = new Date(today); weekEndD.setDate(today.getDate()+(6-today.getDay()));
+  const tomorrowS = tomorrowD.toISOString().slice(0,10);
+  const weekEndS  = weekEndD.toISOString().slice(0,10);
 
   let html = '';
 
-  // 미읽은 공지 배너
+  /* ── 공지 배너 */
   const unread = getUnreadNotices();
   unread.slice(0,3).forEach(n=>{
     const isPersonal = n.type==='개인공지';
@@ -1619,127 +1645,295 @@ async function loadHome(){
     </div>`;
   });
 
-  // 오늘 일정 (캐시된 _events 사용)
-  const todayEvents = _events.filter(ev=>(ev.startAt||'').slice(0,10)===todayStr());
+  /* ── 오늘 일정 (1행 스크롤) */
+  const todayEvs = _events.filter(ev=>(ev.startAt||'').slice(0,10)===todayS);
   html+=`<div class="brief-section">
     <div class="brief-section-title">📅 오늘 일정</div>
-    ${todayEvents.length
-      ? todayEvents.map(ev=>`<div class="list-item">
-          <div class="list-main">
-            <div class="list-title">${esc(ev.title)}${ev.code&&ev.code!==_user.code?` <span style="font-size:11px;color:var(--gold)">(${esc(memberMap[ev.code]||ev.code)})</span>`:''}</div>
-            <div class="list-sub">${ev.startAt?fmtDateTime(ev.startAt):''} ${ev.place?'· '+esc(ev.place):''}</div>
-          </div>
-          <span class="tag tag-b">${esc(ev.type)}</span>
-        </div>`).join('')
+    ${todayEvs.length
+      ? `<div class="home-today-scroll">${todayEvs.map(ev=>`
+          <div class="home-today-item">
+            <div class="home-today-label">${esc(ev.title)}${ev.code&&ev.code!==_user.code?` <span style="color:var(--gold);font-weight:400">(${esc(memberMap[ev.code]||ev.code)})</span>`:''}</div>
+            <div class="home-today-sub">${ev.startAt?fmtDateTime(ev.startAt):''} ${ev.place?'· '+esc(ev.place):''}</div>
+          </div>`).join('')}</div>`
       : '<div class="brief-empty">오늘 일정이 없습니다.</div>'}
   </div>`;
 
-  // 오늘 휴무인 팀원 (관리자: 이미 로드된 _events에 전원 포함)
-  if(isAdmin){
-    const holToday = _events.filter(ev=>{
-      const start=ev.startAt?.slice(0,10)||'';
-      return start===todayStr() && (ev.type==='휴무'||ev.type==='오전휴무'||ev.type==='오후휴무') && ev.code!==_user.code;
-    });
+  /* ── 이번 주 일정 (내일~일요일, 가로 카드) */
+  const weekEvs = _events.filter(ev=>{
+    const d=(ev.startAt||'').slice(0,10);
+    return d>=tomorrowS && d<=weekEndS && (isAdmin || ev.code===_user.code);
+  });
+  html+=`<div class="brief-section">
+    <div class="brief-section-title">📆 이번 주 일정</div>
+    ${weekEvs.length
+      ? `<div class="home-card-grid">${weekEvs.map(ev=>{
+          const dow=new Date((ev.startAt||'').slice(0,10)).toLocaleDateString('ko-KR',{weekday:'short'});
+          return `<div class="home-card">
+            <div class="home-card-title">${esc(ev.title)}</div>
+            <div class="home-card-sub">${dow} · ${ev.startAt?fmtDateTime(ev.startAt):''}${ev.code&&ev.code!==_user.code?` · <span style="color:var(--gold)">${esc(memberMap[ev.code]||ev.code)}</span>`:''}</div>
+            ${ev.place?`<div class="home-card-sub">📍 ${esc(ev.place)}</div>`:''}
+          </div>`;}).join('')}</div>`
+      : '<div class="brief-empty">이번 주 남은 일정이 없습니다.</div>'}
+  </div>`;
+
+  /* ── 미완료 할일 (우선순위 정렬, 3개+펼치기) */
+  const priOrder={'높음':0,'중간':1,'낮음':2};
+  const incompleteTodos = _todos
+    .filter(t=>!t.done)
+    .sort((a,b)=>(priOrder[a.priority]??1)-(priOrder[b.priority]??1));
+  const todoVisible = incompleteTodos.slice(0,3);
+  const todoHidden  = incompleteTodos.slice(3);
+  function todoCard(t){
+    const priColor=t.priority==='높음'?'var(--red)':t.priority==='중간'?'var(--orange)':'var(--dim)';
+    return `<div class="home-card">
+      <div style="width:6px;height:6px;border-radius:50%;background:${priColor};margin-bottom:2px"></div>
+      <div class="home-card-title">${esc(t.content)}</div>
+      ${t.dueDate?`<div class="home-card-sub">마감 ${fmtDate(t.dueDate)}</div>`:''}
+      ${t.sender?`<div class="home-card-sub">📌 ${esc(memberMap[t.sender]||t.sender)}</div>`:''}
+    </div>`;
+  }
+  html+=`<div class="brief-section">
+    <div class="brief-section-title">✅ 미완료 할일 <span style="font-size:10px;color:var(--dim)">${incompleteTodos.length}건</span></div>
+    ${incompleteTodos.length
+      ? `<div class="home-card-grid" id="todo-cards">${todoVisible.map(todoCard).join('')}</div>
+         ${todoHidden.length?`<button class="home-expand-btn" id="todo-expand-btn" onclick="homeExpandTodos()">+ ${todoHidden.length}개 더 보기</button>
+         <div id="todo-hidden-data" style="display:none">${JSON.stringify(todoHidden.map(t=>({id:t.id,content:t.content,priority:t.priority,dueDate:t.dueDate,sender:t.sender,done:t.done})))}</div>`:''}`
+      : '<div class="brief-empty">미완료 할일이 없습니다. 🎉</div>'}
+  </div>`;
+
+  /* ── 미확인 발주서 (수신자=본인 OR 발신자=본인) */
+  html+=`<div class="brief-section">
+    <div class="brief-section-title">📋 미확인 발주서</div>
+    <div id="home-orders-section"><div class="brief-empty" style="font-size:11px;color:var(--dim)">불러오는 중…</div></div>
+  </div>`;
+
+  /* ── 절기문자 임박 */
+  html+=`<div class="brief-section" id="home-jolgi-section" style="display:none">
+    <div class="brief-section-title">📨 절기문자 임박</div>
+    <div class="home-card-grid" id="home-jolgi-cards"></div>
+  </div>`;
+
+  /* ── 매니저 이상: 다이겨 KPI */
+  if(isMgr){
     html+=`<div class="brief-section">
-      <div class="brief-section-title">🏖 오늘 휴무인 팀원</div>
-      ${holToday.length
-        ? holToday.map(ev=>`<div class="list-item">
-            <div class="list-main"><div class="list-title">${esc(memberMap[ev.code]||ev.code)}</div></div>
-            <span class="tag tag-o">${esc(ev.type)}</span>
-          </div>`).join('')
-        : '<div class="brief-empty">오늘 휴무인 팀원이 없습니다.</div>'}
+      <div class="brief-section-title">💰 다이겨 매출 현황</div>
+      <div id="home-kpi-section"><div class="brief-empty" style="font-size:11px;color:var(--dim)">불러오는 중…</div></div>
     </div>`;
   }
 
-  // 오늘 마감 할일
-  const urgentTodos = _todos.filter(t=>!t.done && t.dueDate===todayStr());
-  html+=`<div class="brief-section">
-    <div class="brief-section-title">✅ 오늘 마감 할일</div>
-    ${urgentTodos.length
-      ? urgentTodos.map(t=>`<div class="list-item">
-          <div class="list-main">
-            <div class="list-title"><span class="todo-pri pri-${t.priority==='높음'?'high':t.priority==='중간'?'mid':'low'}"></span>${esc(t.content)}</div>
-            ${t.sender?`<div class="list-sub">📌 ${esc(memberMap[t.sender]||t.sender)}님 요청</div>`:''}
-          </div>
-        </div>`).join('')
-      : '<div class="brief-empty">오늘 마감 할일이 없습니다.</div>'}
-  </div>`;
-
-  // 관리자 전용: 마음의소리 미확인
+  /* ── 관리자: 블로그·협찬·에이아이무빙 */
   if(isAdmin){
-    const mapeonUnread=_noticeCache.filter(n=>n.type==='마음의소리'&&!n.read).length;
-    if(mapeonUnread){
-      html+=`<div class="brief-section">
-        <div class="brief-section-title">💬 마음의소리</div>
-        <div class="list-item">
-          <div class="list-main"><div class="list-title">미확인 ${mapeonUnread}건</div></div>
-          <button class="btn btn-ghost btn-sm" onclick="openMapeonInbox()">보기</button>
-        </div>
+    html+=`<div class="brief-section">
+      <div class="brief-section-title">📊 서비스별 현황</div>
+      <div id="home-service-section"><div class="brief-empty" style="font-size:11px;color:var(--dim)">불러오는 중…</div></div>
+    </div>`;
+  }
+
+  body.innerHTML = html;
+
+  /* ── 절기문자 렌더 (비동기) */
+  _renderHomeJolgiCards();
+
+  /* ── 발주서 미확인 (비동기) */
+  apiGet(GAS_B,{action:'list_orders'}).then(res=>{
+    const orders=(res?.orders||[]).filter(o=>{
+      const isMine = o.code===_user.code;
+      const isRecv = o.receiver===_user.code;
+      return !o.confirmed && (isMine || isRecv || isAdmin);
+    });
+    const el=document.getElementById('home-orders-section');
+    if(!el) return;
+    if(!orders.length){el.innerHTML='<div class="brief-empty">미확인 발주서가 없습니다.</div>';return;}
+    el.innerHTML=`<div class="home-card-grid">${orders.map(o=>`
+      <div class="home-card" onclick="nav('order')" style="cursor:pointer">
+        <div class="home-card-title">${esc(o.client||'(거래처 없음)')}</div>
+        <div class="home-card-sub">${fmtDate(o.createdAt)} · ${o.code===_user.code?'내가 보낸':'내게 온'}</div>
+        ${o.dueDate?`<div class="home-card-sub">마감 ${fmtDate(o.dueDate)}</div>`:''}
+        <span class="tag tag-o home-card-tag">미확인</span>
+      </div>`).join('')}</div>`;
+  }).catch(()=>{
+    const el=document.getElementById('home-orders-section');
+    if(el) el.innerHTML='<div class="brief-empty">발주서 정보를 불러오지 못했습니다.</div>';
+  });
+
+  /* ── 다이겨 KPI (매니저 이상, 비동기) */
+  if(isMgr){
+    (async()=>{
+      try{
+        const csvs=await Promise.all(DAIGEO_TABS.map(t=>
+          proxyFetch(`https://docs.google.com/spreadsheets/d/${SH_DAIGEO.id}/export?format=csv&gid=${t.gid}&_t=${Date.now()}`,15000).catch(()=>null)
+        ));
+        let totalContract=0,totalPaid=0,totalRemain=0;
+        csvs.forEach((csv,idx)=>{
+          if(!csv) return;
+          const t=DAIGEO_TABS[idx],rows=csvParse(csv);
+          for(let i=t.dataStart;i<rows.length;i++){
+            const r=rows[i]||[];
+            const client=(r[t.colClient]||'').trim();if(!client) continue;
+            const contract=parseInt((r[t.colContract]||'0').replace(/[^\d]/g,''))||0;
+            const paid=parseInt((r[t.colPaid]||'0').replace(/[^\d]/g,''))||0;
+            const remain=t.colRemain!=null?parseInt((r[t.colRemain]||'0').replace(/[^\d]/g,''))||0:Math.max(0,contract-paid);
+            if(!contract&&!paid) continue;
+            totalContract+=contract;totalPaid+=paid;totalRemain+=remain;
+          }
+        });
+        const remainPct=totalContract?Math.round(totalRemain/totalContract*100):0;
+        const el=document.getElementById('home-kpi-section');
+        if(el) el.innerHTML=`<div class="home-kpi-grid">
+          <div class="home-kpi-card"><div class="home-kpi-label">총 계약금액</div><div class="home-kpi-val">${fmtKRW(totalContract)}</div></div>
+          <div class="home-kpi-card"><div class="home-kpi-label">총 입금액</div><div class="home-kpi-val" style="color:var(--green)">${fmtKRW(totalPaid)}</div></div>
+          <div class="home-kpi-card"><div class="home-kpi-label">총 미수금</div><div class="home-kpi-val" style="color:${totalRemain>0?'var(--orange)':'var(--dim)'}">${fmtKRW(totalRemain)}<div style="font-size:10px;font-weight:400;color:var(--dim);margin-top:3px">계약 대비 ${remainPct}%</div></div></div>
+        </div>`;
+      }catch(_){
+        const el=document.getElementById('home-kpi-section');
+        if(el) el.innerHTML='<div class="brief-empty">매출 데이터를 불러오지 못했습니다.</div>';
+      }
+    })();
+  }
+
+  /* ── 서비스별 현황 (관리자, 비동기) */
+  if(isAdmin){
+    Promise.allSettled([
+      apiGet(GAS_A,{action:'get_sponsors'}),
+      _blogClients?.length ? Promise.resolve({ok:true,cached:true}) : null,
+    ]).then(([sponsorRes])=>{
+      const el=document.getElementById('home-service-section');
+      if(!el) return;
+      let cards='';
+
+      // 협찬
+      const sponsors=(sponsorRes?.value?.sponsors||[]);
+      const activeSponsors=sponsors.filter(s=>!s.done);
+      const urgentSponsors=activeSponsors.filter(s=>s.dueDate&&s.dueDate<=todayS);
+      cards+=`<div class="home-card" onclick="nav('sponsor')" style="cursor:pointer">
+        <div class="home-card-title">🤝 협찬 포스팅</div>
+        <div class="home-card-sub">진행중 ${activeSponsors.length}건</div>
+        ${urgentSponsors.length?`<span class="tag tag-r home-card-tag">마감임박 ${urgentSponsors.length}건</span>`:'<span class="tag tag-g home-card-tag">이상없음</span>'}
       </div>`;
-    }
-  }
 
-  // 2번: 절기문자 임박 현황
-  body.innerHTML = html || '<div class="empty">오늘 현황이 없습니다.</div>';
-  renderHomeJolgi(body, html);
+      // 블로그
+      if(_blogClients?.length){
+        const activeBlog=_blogClients.filter(c=>(c.status||'').includes('진행')).length;
+        const overdue=(_blogLogs||[]).filter(t=>t.status==='발행전'&&!t.category?.includes('결제')&&daysDiff(t.date,todayD())<=0);
+        cards+=`<div class="home-card" onclick="nav('blog')" style="cursor:pointer">
+          <div class="home-card-title">📝 블로그 관리대행</div>
+          <div class="home-card-sub">진행중 ${activeBlog}명</div>
+          ${overdue.length?`<span class="tag tag-r home-card-tag">발행지연 ${overdue.length}건</span>`:'<span class="tag tag-g home-card-tag">이상없음</span>'}
+        </div>`;
+      }
 
-  // 관리자 전용: 협찬·블로그 요약 백그라운드 로드
-  if(isAdmin){
-    // 협찬 포스팅 현황
-    apiGet(GAS_A,{action:'get_sponsors'}).then(sRes=>{
-      const sponsors=sRes?.sponsors||[];
-      const active=sponsors.filter(s=>!s.done);
-      if(!active.length) return;
-      const today=todayStr();
-      const urgent=active.filter(s=>s.dueDate&&s.dueDate<=today);
-      const section=document.createElement('div');
-      section.className='brief-section';
-      section.innerHTML=`<div class="brief-section-title">🤝 협찬 포스팅 <span style="font-size:11px;color:var(--dim)">(진행중 ${active.length}건)</span></div>`+
-        (urgent.length ? urgent.map(s=>`<div class="list-item">
-          <div class="list-main"><div class="list-title">${esc(s.brand||'')}</div><div class="list-sub">마감: ${fmtDate(s.dueDate)}</div></div>
-          <span class="tag tag-r">마감!</span>
-        </div>`).join('') : active.slice(0,3).map(s=>`<div class="list-item">
-          <div class="list-main"><div class="list-title">${esc(s.brand||'')}</div></div>
-          ${s.dueDate?`<span class="tag tag-gold">${fmtDate(s.dueDate)}</span>`:''}
-        </div>`).join(''));
-      body.appendChild(section);
-    }).catch(()=>{});
+      // 에이아이무빙 (캐시된 경우)
+      if(window._aiMovingStats){
+        const {count,total}=window._aiMovingStats;
+        cards+=`<div class="home-card" onclick="nav('aimoving')" style="cursor:pointer">
+          <div class="home-card-title">🚚 에이아이무빙</div>
+          <div class="home-card-sub">계약 ${count}건 · ${fmtKRW(total)}</div>
+        </div>`;
+      }
 
-    // 블로그 관리대행 현황 (캐시된 경우)
-    if(_blogClients&&_blogClients.length){
-      const today=todayD();
-      const overdue=(_blogLogs||[]).filter(t=>t.status==='발행전'&&!t.category?.includes('결제')&&daysDiff(t.date,today)<=0);
-      const section=document.createElement('div');
-      section.className='brief-section';
-      section.innerHTML=`<div class="brief-section-title">📝 블로그 관리대행 <span style="font-size:11px;color:var(--dim)">(${_blogClients.filter(c=>(c.status||'').includes('진행')).length}명 진행중)</span></div>`+
-        (overdue.length ? `<div class="list-item"><div class="list-main"><div class="list-title" style="color:var(--red)">⚠ 발행 지연 ${overdue.length}건</div></div></div>` : `<div class="brief-empty">발행 지연 없음</div>`);
-      body.appendChild(section);
-    }
-  }
-
-  // 만료 임박 박스 백그라운드 로드
-  if(isAdmin){
-    mbApiGet({action:'list'}).then(mbRes=>{
-      const now=new Date();now.setHours(0,0,0,0);
-      const expiring=(mbRes?.boxes||[]).filter(b=>{
-        if(!b.expires||b.status!=='활성')return false;
-        const exp=new Date(b.expires);exp.setHours(23,59,59);
-        return Math.ceil((exp-now)/(1000*60*60*24))<=3;
-      });
-      if(!expiring.length) return;
-      const section=document.createElement('div');
-      section.className='brief-section';
-      section.innerHTML=`<div class="brief-section-title">⚠ 만료 임박 박스</div>`+
-        expiring.map(b=>{
-          const exp=new Date(b.expires);exp.setHours(23,59,59);
-          const diff=Math.ceil((exp-now)/(1000*60*60*24));
-          return `<div class="list-item"><div class="list-main"><div class="list-title">${esc(b.name)}</div></div><span class="tag tag-r">D-${diff}</span></div>`;
-        }).join('');
-      body.appendChild(section);
-    }).catch(()=>{});
+      el.innerHTML=cards?`<div class="home-card-grid">${cards}</div>`:'<div class="brief-empty">서비스 데이터를 불러오는 중입니다.</div>';
+    });
   }
 }
 
+// 할일 카드 펼치기
+function homeExpandTodos(){
+  const el=document.getElementById('home-orders-section');
+  const grid=document.getElementById('todo-cards');
+  const btn=document.getElementById('todo-expand-btn');
+  const dataEl=document.getElementById('todo-hidden-data');
+  if(!grid||!btn||!dataEl) return;
+  const memberMap={};_members.forEach(m=>memberMap[m.code]=m.name);
+  const hidden=JSON.parse(dataEl.textContent||'[]');
+  const priColor=p=>p==='높음'?'var(--red)':p==='중간'?'var(--orange)':'var(--dim)';
+  grid.innerHTML+=hidden.map(t=>`<div class="home-card">
+    <div style="width:6px;height:6px;border-radius:50%;background:${priColor(t.priority)};margin-bottom:2px"></div>
+    <div class="home-card-title">${esc(t.content)}</div>
+    ${t.dueDate?`<div class="home-card-sub">마감 ${fmtDate(t.dueDate)}</div>`:''}
+    ${t.sender?`<div class="home-card-sub">📌 ${esc(memberMap[t.sender]||t.sender)}</div>`:''}
+  </div>`).join('');
+  btn.remove();
+  dataEl.remove();
+}
+
+// 절기문자 임박 카드 렌더
+function _renderHomeJolgiCards(){
+  function _draw(jolgiDates){
+    const today=todayD();
+    const isEnded=j=>daysDiff(j.dateObj,today)<0&&j.done>=j.total;
+    const upcoming=jolgiDates.filter(j=>{
+      if(isEnded(j)) return false;
+      const d=daysDiff(j.dateObj,today);
+      return d>=0&&d<=20&&(j.ready>0||j.confirm>0);
+    });
+    const todayJ=jolgiDates.filter(j=>daysDiff(j.dateObj,today)===0&&j.ready>0);
+    const items=[...todayJ,...upcoming.filter(j=>daysDiff(j.dateObj,today)!==0)].slice(0,6);
+    const section=document.getElementById('home-jolgi-section');
+    const cards=document.getElementById('home-jolgi-cards');
+    if(!section||!cards) return;
+    if(!items.length){section.style.display='none';return;}
+    section.style.display='';
+    cards.innerHTML=items.map(j=>{
+      const d=daysDiff(j.dateObj,today);
+      const ddayTxt=d===0?'오늘 마감!':d===1?'내일':` D-${d}일`;
+      const tagCls=d===0?'tag-r':d<=3?'tag-o':'tag-gold';
+      const pct=j.total?Math.round(j.done/j.total*100):0;
+      return `<div class="home-card" onclick="nav('jolgimun')" style="cursor:pointer">
+        <div class="home-card-title">${esc(j.name)}</div>
+        <div class="home-card-sub">${j.dateStr}</div>
+        <div class="home-card-sub">완료 ${j.done} / 전체 ${j.total} (${pct}%)</div>
+        <span class="tag ${tagCls} home-card-tag">${ddayTxt}</span>
+      </div>`;
+    }).join('');
+  }
+  if(window._jolgiDates&&window._jolgiDates.length){
+    _draw(window._jolgiDates);
+  } else {
+    (async()=>{
+      const urls=[
+        `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=0&_t=${Date.now()}`,
+        `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&_t=${Date.now()}`,
+      ];
+      for(const u of urls){
+        try{
+          const txt=await proxyFetch(u,12000);
+          if(!txt||txt.length<100) continue;
+          const rows=csvParse(txt);
+          const today=todayD();
+          let DATE_ROW=-1,DATE_COL_START=-1;
+          for(let ri=0;ri<Math.min(30,rows.length);ri++){
+            const r=rows[ri]||[];let cnt=0,fc=-1;
+            for(let ci=0;ci<r.length;ci++){if(/\d{4}-\d{2}-\d{2}/.test((r[ci]||'').trim())){cnt++;if(fc<0)fc=ci;if(cnt>=3)break;}}
+            if(cnt>=3){DATE_ROW=ri;DATE_COL_START=fc;break;}
+          }
+          if(DATE_ROW<0) continue;
+          const NAME_ROW=DATE_ROW+2,DATA_START=DATE_ROW+4;
+          const jolgiDates=[];
+          const dateRow=rows[DATE_ROW]||[],nameRow=rows[NAME_ROW]||[];
+          for(let col=DATE_COL_START;col<dateRow.length;col++){
+            const dateStr=(dateRow[col]||'').trim(),jolgiName=(nameRow[col]||'').trim();
+            if(!dateStr) continue;
+            const dm=dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);if(!dm) continue;
+            const dateObj=new Date(+dm[1],+dm[2]-1,+dm[3]);
+            let ready=0,confirm=0,done=0;
+            for(let row=DATA_START;row<rows.length;row++){
+              const val=(rows[row]?.[col]||'').trim();if(!val||val==='0')continue;
+              if(val.includes('_예정'))ready++;
+              else if(val.includes('_컨펌중'))confirm++;
+              else if(val.includes('_완'))done++;
+            }
+            const total=ready+confirm+done;if(!total)continue;
+            jolgiDates.push({dateStr,dateObj,name:jolgiName||dateStr,total,ready,confirm,done});
+          }
+          jolgiDates.sort((a,b)=>a.dateObj-b.dateObj);
+          window._jolgiDates=jolgiDates;window._jolgiToday=today;
+          _draw(jolgiDates);
+          return;
+        }catch(_){}
+      }
+    })();
+  }
+}
 // ════════════════════════════════
 //  일정
 // ════════════════════════════════
@@ -1818,80 +2012,6 @@ async function deleteEvent(id){
   reloadTo('schedule');
 }
 
-// 절기문자 홈 브리핑 섹션 (캐시 or 백그라운드 로드)
-function renderHomeJolgi(body, existingHtml){
-  function appendJolgiSection(jolgiDates){
-    const today=todayD();
-    const todayJ=jolgiDates.filter(j=>daysDiff(j.dateObj,today)===0&&j.ready>0);
-    const soon=jolgiDates.filter(j=>{const d=daysDiff(j.dateObj,today);return d>0&&d<=20&&(j.ready>0||j.confirm>0);});
-    if(!todayJ.length&&!soon.length) return;
-    const section=document.createElement('div');
-    section.className='brief-section';
-    section.innerHTML=`<div class="brief-section-title">📨 절기문자 임박</div>`+
-      todayJ.map(j=>`<div class="list-item">
-        <div class="list-main"><div class="list-title">${esc(j.name)}</div><div class="list-sub">완료 ${j.done} · 컨펌 ${j.confirm} · 예정 ${j.ready}</div></div>
-        <span class="tag tag-r">오늘 마감!</span>
-      </div>`).join('')+
-      soon.slice(0,5).map(j=>{
-        const d=daysDiff(j.dateObj,today);
-        return `<div class="list-item">
-          <div class="list-main"><div class="list-title">${esc(j.name)}</div><div class="list-sub">완료 ${j.done} · 컨펌 ${j.confirm} · 예정 ${j.ready}</div></div>
-          <span class="tag ${d<=3?'tag-o':'tag-gold'}">D-${d}일</span>
-        </div>`;
-      }).join('');
-    body.appendChild(section);
-  }
-
-  if(window._jolgiDates&&window._jolgiDates.length){
-    appendJolgiSection(window._jolgiDates);
-  } else {
-    // 절기 시트 백그라운드 로드
-    const urls=[
-      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=0&_t=${Date.now()}`,
-      `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&_t=${Date.now()}`,
-    ];
-    (async()=>{
-      for(const u of urls){
-        try{
-          const txt=await proxyFetch(u,12000);
-          if(txt&&txt.length>100){
-            const rows=csvParse(txt);
-            const today=todayD();
-            let DATE_ROW=-1,DATE_COL_START=-1;
-            for(let ri=0;ri<Math.min(30,rows.length);ri++){
-              const r=rows[ri]||[];let cnt=0,fc=-1;
-              for(let ci=0;ci<r.length;ci++){if(/\d{4}-\d{2}-\d{2}/.test((r[ci]||'').trim())){cnt++;if(fc<0)fc=ci;if(cnt>=3)break;}}
-              if(cnt>=3){DATE_ROW=ri;DATE_COL_START=fc;break;}
-            }
-            if(DATE_ROW<0) break;
-            const NAME_ROW=DATE_ROW+2,DATA_START=DATE_ROW+4;
-            const jolgiDates=[];
-            const dateRow=rows[DATE_ROW]||[],nameRow=rows[NAME_ROW]||[];
-            for(let col=DATE_COL_START;col<dateRow.length;col++){
-              const dateStr=(dateRow[col]||'').trim(),jolgiName=(nameRow[col]||'').trim();
-              if(!dateStr) continue;
-              const dm=dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);if(!dm) continue;
-              const dateObj=new Date(+dm[1],+dm[2]-1,+dm[3]);
-              let ready=0,confirm=0,done=0;
-              for(let row=DATA_START;row<rows.length;row++){
-                const val=(rows[row]?.[col]||'').trim();if(!val||val==='0')continue;
-                if(val.includes('_예정'))ready++;
-                else if(val.includes('_컨펌중'))confirm++;
-                else if(val.includes('_완'))done++;
-              }
-              const total=ready+confirm+done;if(!total)continue;
-              jolgiDates.push({dateStr,dateObj,name:jolgiName||dateStr,total,ready,confirm,done});
-            }
-            jolgiDates.sort((a,b)=>a.dateObj-b.dateObj);
-            window._jolgiDates=jolgiDates;window._jolgiToday=today;
-            appendJolgiSection(jolgiDates);
-            break;
-          }
-        }catch(_){}
-      }
-    })();
-  }
-}
 // ── 로그인 후 백그라운드에서 절기문자 날짜를 미리 로드해 달력에 반영
 async function bgLoadJolgiDates(){
   if(window._jolgiDates&&window._jolgiDates.length){ renderCalendar(); return; }
