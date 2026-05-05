@@ -1939,7 +1939,7 @@ async function bgLoadJolgiDates(){
   }
 }
 
-
+function renderCalendar(){
   const now = new Date();
   if(!_calYear) _calYear=now.getFullYear();
   if(_calMonth===undefined) _calMonth=now.getMonth();
@@ -3589,6 +3589,7 @@ function renderJolgimun(csv, body){
       <button class="btn btn-ghost btn-sm" id="jft-this" onclick="jolgiFilter('this')">이번달</button>
       <button class="btn btn-ghost btn-sm" id="jft-next" onclick="jolgiFilter('next')">다음달</button>
       <button class="btn btn-ghost btn-sm" id="jft-upcoming" onclick="jolgiFilter('upcoming')">20일 이내</button>
+      <button class="btn btn-ghost btn-sm" id="jft-ended" onclick="jolgiFilter('ended')">종료</button>
     </div>
     <div id="jolgi-list"></div></div>`;
   body.innerHTML=html;
@@ -3600,30 +3601,60 @@ function jolgiFilter(mode){
   const all=window._jolgiDates||[];
   const thisM=today.getMonth(),thisY=today.getFullYear();
   const nextM=(thisM+1)%12,nextY=thisM===11?thisY+1:thisY;
-  ['all','this','next','upcoming'].forEach(k=>{
+
+  // 종료 판별: 날짜가 지났고(D+1 이상) 완료건 == 전체건
+  const isEnded=j=>daysDiff(j.dateObj,today)<0&&j.done>=j.total;
+  // 미달 판별: 날짜가 지났고(D+1 이상) 완료건 < 전체건
+  const isMissed=j=>daysDiff(j.dateObj,today)<0&&j.done<j.total;
+
+  ['all','this','next','upcoming','ended'].forEach(k=>{
     const el=document.getElementById('jft-'+k);
     if(el){el.className='btn btn-sm '+(k===mode?'btn-gold':'btn-ghost');}
   });
-  let filtered=all;
-  if(mode==='this') filtered=all.filter(j=>j.dateObj.getFullYear()===thisY&&j.dateObj.getMonth()===thisM);
-  else if(mode==='next') filtered=all.filter(j=>j.dateObj.getFullYear()===nextY&&j.dateObj.getMonth()===nextM);
-  else if(mode==='upcoming') filtered=all.filter(j=>{const d=daysDiff(j.dateObj,today);return d>=0&&d<=20;});
+
+  let filtered;
+  if(mode==='ended'){
+    filtered=all.filter(j=>isEnded(j));
+  } else {
+    // 종료된 항목은 전체/이번달/다음달/20일이내에서 제외
+    const active=all.filter(j=>!isEnded(j));
+    if(mode==='this') filtered=active.filter(j=>j.dateObj.getFullYear()===thisY&&j.dateObj.getMonth()===thisM);
+    else if(mode==='next') filtered=active.filter(j=>j.dateObj.getFullYear()===nextY&&j.dateObj.getMonth()===nextM);
+    else if(mode==='upcoming') filtered=active.filter(j=>{const d=daysDiff(j.dateObj,today);return d>=0&&d<=20;});
+    else filtered=active;
+  }
+
   const el=document.getElementById('jolgi-list');
   if(!el) return;
   if(!filtered.length){el.innerHTML='<div class="empty">해당 기간 절기 없음</div>';return;}
   el.innerHTML=filtered.map(j=>{
     const d=daysDiff(j.dateObj,today);
     const isPast=d<0,isToday=d===0,isUrgent=!isPast&&!isToday&&d<=2;
-    const ddayTxt=isToday?'D-0 마감!':isPast?`D+${Math.abs(d)}일 지연`:d===1?'내일':`D-${d}일`;
-    const color=isToday?'var(--red)':isPast?'rgba(224,85,85,.5)':isUrgent?'var(--orange)':'var(--green)';
-    const borderColor=isToday?'rgba(224,85,85,.5)':isPast?'rgba(255,255,255,.06)':'var(--b)';
+    const ended=isEnded(j),missed=isMissed(j);
+
+    let ddayTxt,color,borderColor,cardBg='';
+    if(ended){
+      ddayTxt='종료';
+      color='var(--dim)';borderColor='rgba(255,255,255,.06)';cardBg=';opacity:.5';
+    } else if(missed){
+      ddayTxt='미달';
+      color='var(--red)';borderColor='rgba(224,85,85,.3)';cardBg=';background:rgba(224,85,85,.04)';
+    } else if(isToday){
+      ddayTxt='D-0 마감!';color='var(--red)';borderColor='rgba(224,85,85,.5)';cardBg=';background:rgba(224,85,85,.05)';
+    } else if(isUrgent){
+      ddayTxt=d===1?'내일':`D-${d}일`;color='var(--orange)';borderColor='var(--b)';
+    } else {
+      ddayTxt=`D-${d}일`;color='var(--green)';borderColor='var(--b)';
+    }
+
     const pct=j.total?Math.round(j.done/j.total*100):0;
-    return `<div style="border:1px solid ${borderColor};border-radius:9px;padding:12px 14px;margin-bottom:8px${isPast?';opacity:.7':''}${isToday?';background:rgba(224,85,85,.05)':''}">
+    const tagClass=ended?'tag-dim':missed?'tag-r':pct>=100?'tag-g':'tag-gold';
+    return `<div style="border:1px solid ${borderColor};border-radius:9px;padding:12px 14px;margin-bottom:8px${cardBg}">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
         <div style="font-size:15px;font-weight:700;color:${color};min-width:80px;text-align:center">${ddayTxt}</div>
         <div style="flex:1"><div style="font-size:13.5px;font-weight:700;color:#fff">${j.name}</div>
         <div style="font-size:11px;color:var(--dim)">${j.dateStr} · 전체 ${j.total}건</div></div>
-        <span class="tag ${pct>=100?'tag-g':isPast&&pct<100?'tag-r':'tag-gold'}">${pct}%</span>
+        <span class="tag ${tagClass}">${pct}%</span>
       </div>
       <div style="display:flex;gap:10px;font-size:12px;color:var(--dim)">
         <span>🟢 완료 ${j.done}</span><span>🟠 컨펌 ${j.confirm}</span><span>⬜ 예정 ${j.ready}</span>
