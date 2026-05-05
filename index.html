@@ -249,7 +249,17 @@ a{color:inherit;text-decoration:none}
 .cal-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
 .cal-dot-ev{background:var(--blue)}
 .cal-dot-hol{background:var(--orange)}
+.cal-dot-jolgi{background:var(--gold)}
 .cal-day.selected{background:var(--b2);border:1px solid var(--b)}
+.cal-day.is-holiday .cal-dn{color:var(--red);font-weight:700}
+.cal-day.is-sunday .cal-dn{color:rgba(224,85,85,.6)}
+.cal-solar-term{font-size:8.5px;color:var(--green);line-height:1.2;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-legend{display:flex;gap:12px;flex-wrap:wrap;padding:10px 0 2px;border-top:1px solid var(--b);margin-top:10px}
+.cal-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim)}
+.cal-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.cal-holiday-badge{display:inline-block;font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(224,85,85,.12);color:var(--red);border:1px solid rgba(224,85,85,.25);margin-bottom:4px}
+.cal-solar-badge{display:inline-block;font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(95,207,133,.1);color:var(--green);border:1px solid rgba(95,207,133,.2);margin-bottom:4px}
+.cal-jolgi-badge{display:inline-block;font-size:9px;padding:1px 5px;border-radius:4px;background:var(--gold2);color:var(--gold);border:1px solid rgba(201,169,110,.25);margin-bottom:4px}
 
 /* ── 할일 */
 .todo-item{
@@ -1218,6 +1228,7 @@ function enterApp(){
     if(activePageId==='home') loadHome();
     else if(activePageId==='calendar'||activePageId==='schedule') renderCalendar(),renderSchedule();
     else if(activePageId==='todo') renderTodos();
+    bgLoadJolgiDates(); // 백그라운드로 절기문자 날짜 선로드 → 달력 자동 갱신
   });
 }
 
@@ -1881,7 +1892,54 @@ function renderHomeJolgi(body, existingHtml){
     })();
   }
 }
-function renderCalendar(){
+// ── 로그인 후 백그라운드에서 절기문자 날짜를 미리 로드해 달력에 반영
+async function bgLoadJolgiDates(){
+  if(window._jolgiDates&&window._jolgiDates.length){ renderCalendar(); return; }
+  const urls=[
+    `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&gid=0&_t=${Date.now()}`,
+    `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/export?format=csv&_t=${Date.now()}`,
+    `https://docs.google.com/spreadsheets/d/${SH_JOLGI.id}/gviz/tq?tqx=out:csv`,
+  ];
+  for(const u of urls){
+    try{
+      const txt=await proxyFetch(u,15000);
+      if(!txt||txt.length<100) continue;
+      const rows=csvParse(txt);
+      let DATE_ROW=-1,DATE_COL_START=-1;
+      for(let ri=0;ri<Math.min(30,rows.length);ri++){
+        const r=rows[ri]||[];let cnt=0,fc=-1;
+        for(let ci=0;ci<r.length;ci++){if(/\d{4}-\d{2}-\d{2}/.test((r[ci]||'').trim())){cnt++;if(fc<0)fc=ci;if(cnt>=3)break;}}
+        if(cnt>=3){DATE_ROW=ri;DATE_COL_START=fc;break;}
+      }
+      if(DATE_ROW<0) continue;
+      const NAME_ROW=DATE_ROW+2,DATA_START=DATE_ROW+4;
+      const jolgiDates=[];
+      const dateRow=rows[DATE_ROW]||[],nameRow=rows[NAME_ROW]||[];
+      for(let col=DATE_COL_START;col<dateRow.length;col++){
+        const dateStr=(dateRow[col]||'').trim(),jolgiName=(nameRow[col]||'').trim();
+        if(!dateStr) continue;
+        const dm=dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);if(!dm) continue;
+        const dateObj=new Date(+dm[1],+dm[2]-1,+dm[3]);
+        let ready=0,confirm=0,done=0;
+        for(let row=DATA_START;row<rows.length;row++){
+          const val=(rows[row]?.[col]||'').trim();if(!val||val==='0')continue;
+          if(val.includes('_예정'))ready++;
+          else if(val.includes('_컨펌중'))confirm++;
+          else if(val.includes('_완'))done++;
+        }
+        const total=ready+confirm+done;if(!total)continue;
+        jolgiDates.push({dateStr,dateObj,name:jolgiName||dateStr,total,ready,confirm,done});
+      }
+      jolgiDates.sort((a,b)=>a.dateObj-b.dateObj);
+      window._jolgiDates=jolgiDates;
+      window._jolgiToday=todayD();
+      renderCalendar(); // 달력 갱신
+      return;
+    }catch(_){}
+  }
+}
+
+
   const now = new Date();
   if(!_calYear) _calYear=now.getFullYear();
   if(_calMonth===undefined) _calMonth=now.getMonth();
@@ -1909,17 +1967,30 @@ function renderCalendar(){
     html+=`<div class="cal-day other"><div class="cal-dn">${prevLast-i}</div></div>`;
   }
   // 이번달
+  const jolgiMap={};
+  (window._jolgiDates||[]).forEach(j=>{ jolgiMap[j.dateStr]=j; });
+
   for(let d=1;d<=lastDate;d++){
     const ds=`${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday=d===todayD&&_calMonth===todayM&&_calYear===todayY;
     const isSel=ds===_calSelected;
+    const dow=new Date(_calYear,_calMonth,d).getDay(); // 0=일,6=토
+    const isHoliday=!!_HOLIDAYS[ds];
+    const isSunday=dow===0;
+    const solarTerm=_SOLAR_TERMS[ds]||'';
+    const jolgiInfo=jolgiMap[ds]||null;
+
     const dayEvs=getFilteredEvents().filter(ev=>(ev.startAt||'').slice(0,10)===ds);
-    const dots=dayEvs.map(ev=>{
-      const isHol=ev.type!=='일정';
-      return `<div class="cal-dot ${isHol?'cal-dot-hol':'cal-dot-ev'}"></div>`;
+    let dots=dayEvs.map(ev=>{
+      const isLeave=ev.type!=='일정';
+      return `<div class="cal-dot ${isLeave?'cal-dot-hol':'cal-dot-ev'}"></div>`;
     }).join('');
-    html+=`<div class="cal-day ${isToday?'today':''} ${isSel?'selected':''}" onclick="calSelectDay('${ds}')">
+    if(jolgiInfo) dots+=`<div class="cal-dot cal-dot-jolgi"></div>`;
+
+    const classes=['cal-day',isToday?'today':'',isSel?'selected':'',isHoliday?'is-holiday':(isSunday?'is-sunday':'')].filter(Boolean).join(' ');
+    html+=`<div class="${classes}" onclick="calSelectDay('${ds}')">
       <div class="cal-dn">${d}</div>
+      ${solarTerm?`<div class="cal-solar-term">${solarTerm}</div>`:''}
       <div class="cal-dots">${dots}</div>
     </div>`;
   }
@@ -1927,7 +1998,14 @@ function renderCalendar(){
   const remain=(7-((firstDay+lastDate)%7))%7;
   for(let i=1;i<=remain;i++) html+=`<div class="cal-day other"><div class="cal-dn">${i}</div></div>`;
 
-  html+='</div>';
+  html+=`</div>
+  <div class="cal-legend">
+    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--blue)"></div>일정</div>
+    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--orange)"></div>휴무</div>
+    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--gold)"></div>절기문자</div>
+    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--green)"></div>24절기</div>
+    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--red)"></div>공휴일</div>
+  </div>`;
   wrap.innerHTML=html;
   if(_calSelected) renderCalDayEvents(_calSelected);
 }
@@ -1950,8 +2028,25 @@ function renderCalDayEvents(ds){
   if(!el) return;
   const memberMap={};_members.forEach(m=>memberMap[m.code]=m.name);
   const evs=getFilteredEvents().filter(ev=>(ev.startAt||'').slice(0,10)===ds);
-  if(!evs.length){el.innerHTML=`<div class="brief-empty">${fmtDate(ds)} — 일정 없음</div>`;return;}
-  el.innerHTML=`<div style="font-size:12px;color:var(--dim);margin-bottom:8px">${fmtDate(ds)}</div>`+
+
+  const holidayName=_HOLIDAYS[ds]||'';
+  const solarTerm=_SOLAR_TERMS[ds]||'';
+  const jolgiMap={};(window._jolgiDates||[]).forEach(j=>{jolgiMap[j.dateStr]=j;});
+  const jolgiInfo=jolgiMap[ds]||null;
+
+  let specialBadges='';
+  if(holidayName) specialBadges+=`<span class="cal-holiday-badge">🎌 ${esc(holidayName)}</span> `;
+  if(solarTerm)   specialBadges+=`<span class="cal-solar-badge">🌿 ${esc(solarTerm)}</span> `;
+  if(jolgiInfo)   specialBadges+=`<span class="cal-jolgi-badge">📨 절기문자 — 완료 ${jolgiInfo.done} / 전체 ${jolgiInfo.total}</span>`;
+
+  const dateHeader=`<div style="font-size:12px;color:var(--dim);margin-bottom:6px">${fmtDate(ds)}</div>`;
+  const specialBlock=specialBadges?`<div style="margin-bottom:8px">${specialBadges}</div>`:'';
+
+  if(!evs.length){
+    el.innerHTML=dateHeader+specialBlock+(specialBadges?'':'<div class="brief-empty">일정 없음</div>');
+    return;
+  }
+  el.innerHTML=dateHeader+specialBlock+
     evs.map(ev=>`<div class="list-item">
       <div class="list-main">
         <div class="list-title">${esc(ev.title)}${ev.code&&ev.code!==_user.code?` <span style="font-size:11px;color:var(--gold)">(${esc(memberMap[ev.code]||ev.code)})</span>`:''}</div>
@@ -3176,6 +3271,57 @@ async function loadProfile(){
 //  공통 헬퍼 (CSV·프록시·날짜)
 // ════════════════════════════════
 const SH_JOLGI   = {id:'1DFG4bhJdpWl9a_4K2a4xlekgoUso3aDwEZRi2BeCPYA'};
+
+// ── 공휴일·국경일 (2025~2027) ※ 음력 기반 항목은 연도별 실제 날짜 적용
+const _HOLIDAYS = {
+  // ── 2025
+  '2025-01-01':'신정','2025-01-28':'설날 전날','2025-01-29':'설날','2025-01-30':'설날 다음날',
+  '2025-03-01':'삼일절','2025-03-03':'대체공휴일',
+  '2025-05-05':'어린이날·부처님오신날','2025-05-06':'대체공휴일',
+  '2025-06-06':'현충일','2025-08-15':'광복절',
+  '2025-10-03':'개천절',
+  '2025-10-05':'추석 전날','2025-10-06':'추석','2025-10-07':'추석 다음날','2025-10-08':'대체공휴일',
+  '2025-10-09':'한글날','2025-12-25':'크리스마스',
+  // ── 2026
+  '2026-01-01':'신정','2026-02-16':'설날 전날','2026-02-17':'설날','2026-02-18':'설날 다음날',
+  '2026-03-01':'삼일절',
+  '2026-05-05':'어린이날','2026-05-24':'부처님오신날',
+  '2026-06-06':'현충일','2026-08-15':'광복절',
+  '2026-09-24':'추석 전날','2026-09-25':'추석','2026-09-26':'추석 다음날',
+  '2026-10-03':'개천절','2026-10-09':'한글날','2026-12-25':'크리스마스',
+  // ── 2027
+  '2027-01-01':'신정','2027-02-06':'설날 전날','2027-02-07':'설날','2027-02-08':'설날 다음날',
+  '2027-03-01':'삼일절',
+  '2027-05-05':'어린이날','2027-05-13':'부처님오신날',
+  '2027-06-06':'현충일','2027-08-15':'광복절',
+  '2027-09-14':'추석 전날','2027-09-15':'추석','2027-09-16':'추석 다음날',
+  '2027-10-03':'개천절','2027-10-09':'한글날','2027-12-25':'크리스마스',
+};
+
+// ── 24절기 (2025~2027) ※ 날짜는 ±1일 오차 있을 수 있음
+const _SOLAR_TERMS = {
+  // ── 2025
+  '2025-01-05':'소한','2025-01-20':'대한','2025-02-03':'입춘','2025-02-18':'우수',
+  '2025-03-05':'경칩','2025-03-20':'춘분','2025-04-04':'청명','2025-04-20':'곡우',
+  '2025-05-05':'입하','2025-05-21':'소만','2025-06-05':'망종','2025-06-21':'하지',
+  '2025-07-07':'소서','2025-07-22':'대서','2025-08-07':'입추','2025-08-23':'처서',
+  '2025-09-07':'백로','2025-09-23':'추분','2025-10-08':'한로','2025-10-23':'상강',
+  '2025-11-07':'입동','2025-11-22':'소설','2025-12-07':'대설','2025-12-22':'동지',
+  // ── 2026
+  '2026-01-05':'소한','2026-01-20':'대한','2026-02-04':'입춘','2026-02-19':'우수',
+  '2026-03-06':'경칩','2026-03-21':'춘분','2026-04-05':'청명','2026-04-20':'곡우',
+  '2026-05-05':'입하','2026-05-21':'소만','2026-06-06':'망종','2026-06-21':'하지',
+  '2026-07-07':'소서','2026-07-23':'대서','2026-08-07':'입추','2026-08-23':'처서',
+  '2026-09-08':'백로','2026-09-23':'추분','2026-10-08':'한로','2026-10-23':'상강',
+  '2026-11-07':'입동','2026-11-22':'소설','2026-12-07':'대설','2026-12-22':'동지',
+  // ── 2027
+  '2027-01-05':'소한','2027-01-20':'대한','2027-02-03':'입춘','2027-02-18':'우수',
+  '2027-03-05':'경칩','2027-03-20':'춘분','2027-04-05':'청명','2027-04-20':'곡우',
+  '2027-05-05':'입하','2027-05-21':'소만','2027-06-06':'망종','2027-06-21':'하지',
+  '2027-07-07':'소서','2027-07-22':'대서','2027-08-07':'입추','2027-08-23':'처서',
+  '2027-09-07':'백로','2027-09-23':'추분','2027-10-08':'한로','2027-10-23':'상강',
+  '2027-11-07':'입동','2027-11-22':'소설','2027-12-07':'대설','2027-12-22':'동지',
+};
 const SH_DAIGEO  = {id:'1qA8oxCCe0QVQhCsXm-nsbjJSx0tRCLPvWEhDenBfOWU'};
 const SH_AIMOVING= {id:'1Do3aDmmrXoNYj2trcjumRRGNCOy3jXKZiqiiB9M-YN0'};
 const SH_BLOG    = {id:'15jBLPGRJr8WzTuHMMKYWyTniOBB0wkL7QqVET16G1CY', gid:'1533269847'};
