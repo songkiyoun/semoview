@@ -2459,6 +2459,7 @@ async function saveOrder(){
     detail:document.getElementById('ord-detail').value,
     receiver:document.getElementById('ord-receiver').value,
     status:'완료'});
+  if(!_editId) apiPost(GAS_A,{action:'inc_stat',key:'order_send'});
   reloadTo('order');
 }
 
@@ -2498,6 +2499,7 @@ async function viewOrder(id){
 async function confirmOrder(id){
   closeModal('doc-view-modal');
   apiPost(GAS_B,{action:'confirm_order',id});
+  apiPost(GAS_A,{action:'inc_stat',key:'order_receive'});
   reloadTo('order');
 }
 
@@ -2596,6 +2598,7 @@ async function saveExpense(){
   closeModal('expense-modal');
   apiPost(GAS_B,{action:'save_expense',id:_editId||'',items,
     memo:document.getElementById('exp-memo').value,status:'완료'});
+  if(!_editId) apiPost(GAS_A,{action:'inc_stat',key:'expense_add'});
   reloadTo('expense');
 }
 
@@ -2778,6 +2781,7 @@ async function saveRefund(){
   if(!items.length){alert('항목을 1개 이상 추가해주세요.');return;}
   closeModal('refund-modal');
   apiPost(GAS_B,{action:'save_refund',id:_refundEditId||'',items,status:'완료'});
+  if(!_refundEditId) apiPost(GAS_A,{action:'inc_stat',key:'refund_add'});
   reloadTo('refund');
 }
 
